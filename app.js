@@ -43,14 +43,14 @@ class BehaviorLetterApp {
     this.init();
   }
 
-  init() {
+  async init() {
     this.cacheElements();
     this.setupEventListeners();
     this.generateRefNumber();
     this.updateWordCharPageCounts();
     this.updatePreview();
     this.validateAll();
-    this.loadDraftsFromStorage();
+    await this.loadDraftsFromStorage();
   }
 
   cacheElements() {
@@ -295,16 +295,16 @@ class BehaviorLetterApp {
     const repTitle = this.elements["designation"] || this.elements["input-sender-title"];
     
     if (this.elements["prev-date"]) this.elements["prev-date"].textContent = dateEl?.value || "";
-    if (this.elements["prev-ref"]) this.elements["prev-ref"].textContent = refEl?.value ? `Ref: ${refEl.value}` : (refEl?.value || "");
+    if (this.elements["prev-ref"]) this.elements["prev-ref"].textContent = refEl?.value ? `Ref: ${refEl.value}` : "";
     if (this.elements["prev-confidential-wrap"]) {
-      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
+      const isConf = confEl?.checked || (confEl?.type === "select-one" && confEl.value !== "General");
       this.elements["prev-confidential-wrap"].hidden = !isConf;
-      this.elements["prev-confidential-wrap"].style.display = isConf ? "" : "none";
+      this.elements["prev-confidential-wrap"].style.display = isConf ? "block" : "none";
       if (confEl?.type === "select-one") this.elements["prev-confidential-wrap"].textContent = confEl.value;
     }
     if (this.elements["prev-conf"]) {
-      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
-      this.elements["prev-conf"].style.display = isConf ? "" : "none";
+      const isConf = confEl?.checked || (confEl?.type === "select-one" && confEl.value !== "General");
+      this.elements["prev-conf"].style.display = isConf ? "block" : "none";
       if (confEl?.type === "select-one") this.elements["prev-conf"].textContent = confEl.value;
     }
     if (this.elements["prev-recipient-name"]) this.elements["prev-recipient-name"].textContent = recName?.value || "";
@@ -313,18 +313,19 @@ class BehaviorLetterApp {
     if (this.elements["prev-rec-addr"]) this.elements["prev-rec-addr"].textContent = recAddr?.value || "";
     if (this.elements["prev-employee-id"]) this.elements["prev-employee-id"].textContent = recId?.value ? "Employee ID: " + recId.value : "";
     if (this.elements["prev-rec-id"]) this.elements["prev-rec-id"].textContent = recId?.value ? "Employee ID: " + recId.value : "";
-    if (this.elements["prev-position"]) this.elements["prev-position"].textContent = recPos?.value ? "Position: " + recPos.value : (recPos?.value || "");
+    if (this.elements["prev-position"]) this.elements["prev-position"].textContent = recPos?.value || "";
     if (this.elements["prev-rec-pos"]) this.elements["prev-rec-pos"].textContent = recPos?.value || "";
     if (this.elements["prev-subject"]) this.elements["prev-subject"].textContent = subj?.value || docTypeEl?.value || "";
     if (this.elements["prev-doc-type"]) this.elements["prev-doc-type"].textContent = docTypeEl?.value || "";
-    if (this.elements["prev-content"]) this.elements["prev-content"].innerHTML = editorEl?.innerHTML || "";
-    if (this.elements["prev-sections"]) this.elements["prev-sections"].innerHTML = editorEl?.innerHTML || "";
+    const contentHtml = editorEl?.innerHTML || "";
+    if (this.elements["prev-content"]) this.elements["prev-content"].innerHTML = contentHtml;
+    if (this.elements["prev-sections"]) this.elements["prev-sections"].innerHTML = contentHtml;
     if (this.elements["prev-hr-name"]) this.elements["prev-hr-name"].textContent = repName?.value || "";
     if (this.elements["prev-hr-title"]) this.elements["prev-hr-title"].textContent = repTitle?.value || "";
     if (this.elements["prev-emp-name"]) this.elements["prev-emp-name"].textContent = recName?.value || "";
     if (this.elements["prev-emp2-name"]) this.elements["prev-emp2-name"].textContent = recName?.value || "Witness";
     if (this.elements["footer-confidential"]) {
-      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
+      const isConf = confEl?.checked || (confEl?.type === "select-one" && confEl.value !== "General");
       this.elements["footer-confidential"].style.display = isConf ? "block" : "none";
     }
     if (this.elements["page-number"]) {
@@ -559,17 +560,40 @@ class BehaviorLetterApp {
     this.updateDocumentStatus();
   }
 
-  loadDraftsFromStorage() { try { const s = localStorage.getItem("behaviorHotelDrafts"); this.state.drafts = s ? JSON.parse(s) : []; } catch { this.state.drafts = []; } }
-  saveDraftsToStorage() { try { localStorage.setItem("behaviorHotelDrafts", JSON.stringify(this.state.drafts)); } catch {} }
+  async loadDraftsFromStorage() { 
+    try { 
+      const res = await fetch("/api/drafts");
+      const data = await res.json();
+      this.state.drafts = data.success ? data.drafts : [];
+    } catch { 
+      this.state.drafts = []; 
+    } 
+  }
+  
+  saveDraftsToStorage() { /* API call is made in saveDraft */ }
 
-  saveDraft() {
+  async saveDraft() {
     const d = this.serializeDraft();
     const i = this.state.drafts.findIndex(x => x.id === d.id);
     if (i >= 0) this.state.drafts[i] = d; else this.state.drafts.push(d);
-    this.saveDraftsToStorage();
-    this.state.currentDraftId = d.id;
-    alert("Draft saved successfully!");
-    this.updateDocumentStatus();
+    
+    try {
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(d)
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.state.currentDraftId = d.id;
+        alert("Draft saved successfully to backend!");
+        this.updateDocumentStatus();
+      } else {
+        alert("Failed to save draft to backend.");
+      }
+    } catch (e) {
+      alert("Error saving draft.");
+    }
   }
 
   openDraftModal() {
@@ -609,13 +633,22 @@ class BehaviorLetterApp {
     alert("Document duplicated successfully!");
   }
 
-  deleteCurrentDraft() {
+  async deleteCurrentDraft() {
     if (!this.state.currentDraftId) { alert("No draft currently loaded"); return; }
     if (!confirm("Delete this draft?")) return;
-    this.state.drafts = this.state.drafts.filter(x => x.id !== this.state.currentDraftId);
-    this.saveDraftsToStorage();
-    this.clearForm();
-    alert("Draft deleted successfully!");
+    try {
+      const res = await fetch(`/api/drafts?id=${this.state.currentDraftId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        this.state.drafts = this.state.drafts.filter(x => x.id !== this.state.currentDraftId);
+        this.clearForm();
+        alert("Draft deleted successfully from backend!");
+      } else {
+        alert("Failed to delete draft from backend.");
+      }
+    } catch (e) {
+      alert("Error deleting draft.");
+    }
   }
 
   // Export
