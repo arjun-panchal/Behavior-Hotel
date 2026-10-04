@@ -34,7 +34,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
         @media print {
+            html, body {
+                background: #ffffff;
+            }
             body * { visibility: hidden; }
             #a4-print-container, #a4-print-container * { visibility: visible; }
             #a4-print-container {
@@ -48,10 +56,7 @@
                 background: white !important;
             }
             .no-print { display: none !important; }
-            @page { size: A4 portrait; margin: 0; }
         }
-
-        @page { size: A4 portrait; margin: 0; }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -118,6 +123,7 @@
                         <button type="button" id="del-custom" onclick="app.deleteDocType()" title="Delete custom type" class="border rounded px-2 text-red-600 text-xs hidden"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="text-xs">Date</label>
