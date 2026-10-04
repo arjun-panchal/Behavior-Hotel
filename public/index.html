@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Behavior Hotel — Official Document Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (window.tailwind) {
+            window.tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            burgundy: { DEFAULT: '#7f1d1d', dark: '#651515', soft: '#fdf2f2' },
+                            'corporate-slate': '#f1f5f9'
+                        }
+                    }
+                }
+            };
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+   
+   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root{--burgundy:#7f1d1d;--burgundy-dark:#651515;--burgundy-soft:#fdf2f2}
+        *{box-sizing:border-box}
+        body{margin:0;background:#f1f5f9;color:#0f172a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+        .bh-editor-tabs-wrap{position:sticky;top:0;z-index:20;padding-bottom:8px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px)}
+        .bh-editor-tabs{display:flex;gap:5px;padding:5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;overflow-x:auto;scrollbar-width:none}
+        .bh-editor-tabs::-webkit-scrollbar{display:none}
+        .bh-editor-tab{flex:1 0 auto;min-height:40px;padding:8px 13px;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;border-radius:10px;background:transparent;color:#64748b;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;transition:.18s}
+        .bh-editor-tab:hover{color:var(--burgundy);background:#fff;border-color:#e2e8f0}
+        .bh-editor-tab.active{color:#fff;background:var(--burgundy);border-color:var(--burgundy);box-shadow:0 4px 10px rgba(127,29,29,.16)}
+        .bh-tab-icon{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center}
+        .bh-editor-card{position:relative;isolation:isolate;overflow:visible;background:linear-gradient(145deg,rgba(255,255,255,.99),rgba(248,250,252,.96));border:1px solid rgba(127,29,29,.14);border-radius:18px;box-shadow:0 2px 3px rgba(127,29,29,.04),0 7px 14px rgba(15,23,42,.06),0 16px 32px rgba(15,23,42,.08),0 28px 55px rgba(15,23,42,.07),inset 0 1px 0 rgba(255,255,255,.95);transform:translateY(0) translateZ(0);transform-style:preserve-3d;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease,border-color .3s ease}
+        .bh-editor-card::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.22) 32%,transparent 65%);pointer-events:none}
+        .bh-editor-card::after{content:"";position:absolute;z-index:-2;left:9%;right:9%;bottom:-18px;height:28px;border-radius:50%;background:rgba(127,29,29,.16);filter:blur(18px);opacity:.5;transition:opacity .3s ease,transform .3s ease}
+        .bh-editor-card:hover{transform:translateY(-5px) translateZ(8px);border-color:rgba(127,29,29,.22);box-shadow:0 3px 5px rgba(127,29,29,.04),0 10px 20px rgba(15,23,42,.07),0 22px 44px rgba(15,23,42,.12),0 36px 68px rgba(127,29,29,.08),inset 0 1px 0 rgba(255,255,255,1)}
+        .bh-editor-card:hover::after{opacity:.66;transform:scaleX(1.06)}
+        .bh-card-header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid rgba(148,163,184,.18);background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(248,250,252,.30));border-radius:18px 18px 0 0}
+        .bh-card-heading{display:flex;align-items:center;gap:11px;min-width:0}
+        .bh-section-icon,.bh-upload-icon{position:relative;flex:0 0 auto;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:11px;color:var(--burgundy);background:linear-gradient(145deg,#fef2f2,#fdecec);border:1px solid rgba(127,29,29,.16);font-size:13px;box-shadow:0 3px 5px rgba(127,29,29,.08),0 8px 15px rgba(127,29,29,.12),inset 0 1px 1px rgba(255,255,255,.98);transform:translateZ(12px);transition:transform .3s ease,box-shadow .3s ease}
+        .bh-editor-card:hover .bh-section-icon{transform:translateY(-2px) translateZ(18px) rotate(-1deg);box-shadow:0 4px 7px rgba(127,29,29,.10),0 12px 22px rgba(127,29,29,.16),inset 0 1px 1px rgba(255,255,255,1)}
+        .bh-card-heading h3{margin:0;font-size:13px;font-weight:800;line-height:1.3;letter-spacing:-.01em;color:#0f172a}
+        .bh-card-heading p{margin:3px 0 0;color:#64748b;font-size:10px;line-height:1.45}
+        .bh-card-body{padding:16px}
+        .bh-field-label{display:block;color:#334155;font-size:11px;font-weight:700}
+        .bh-field-label span{color:#b91c1c}
+        .bh-input{width:100%;min-height:37px;padding:8px 11px;color:#0f172a;background:rgba(255,255,255,.94);border:1px solid rgba(148,163,184,.4);border-radius:11px;outline:none;font-size:11px;box-shadow:0 2px 4px rgba(15,23,42,.04),inset 0 1px 2px rgba(15,23,42,.025);transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease,background .2s ease}
+        .bh-input:hover{border-color:rgba(127,29,29,.30)}
+        .bh-input:focus{border-color:rgba(127,29,29,.55);background:#fff;transform:translateY(-1px);box-shadow:0 4px 8px rgba(15,23,42,.06),0 0 0 3px rgba(127,29,29,.10),inset 0 1px 2px rgba(15,23,42,.02)}
+        .bh-input::placeholder{color:#94a3b8}
+        .bh-help-text{margin-top:5px;color:#94a3b8;font-size:9px}
+        .bh-input-icon-wrap{position:relative;margin-top:7px}
+        .bh-input-icon-wrap>i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:11px;pointer-events:none}
+        .bh-input-with-icon{padding-left:31px}
+        .bh-primary-button,.bh-secondary-button,.bh-icon-button{display:inline-flex;align-items:center;justify-content:center;border-radius:11px;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,filter .2s ease}
+        .bh-primary-button{min-height:37px;padding:0 14px;color:#fff;background:linear-gradient(145deg,#9b2c2c,var(--burgundy));border:1px solid var(--burgundy);font-size:11px;font-weight:700;box-shadow:0 3px 6px rgba(127,29,29,.18),0 8px 14px rgba(127,29,29,.12),inset 0 1px 0 rgba(255,255,255,.22)}
+        .bh-primary-button:hover{background:linear-gradient(145deg,#8a2626,var(--burgundy-dark));transform:translateY(-2px);filter:brightness(1.03);box-shadow:0 5px 9px rgba(127,29,29,.20),0 12px 21px rgba(127,29,29,.16),inset 0 1px 0 rgba(255,255,255,.28)}
+        .bh-primary-button:active{transform:translateY(1px);box-shadow:0 2px 4px rgba(127,29,29,.16),inset 0 2px 4px rgba(15,23,42,.10)}
+        .bh-secondary-button{min-height:33px;padding:0 11px;color:var(--burgundy);background:#fff;border:1px solid #e5caca;font-size:10px;font-weight:700;box-shadow:0 2px 4px rgba(15,23,42,.05),inset 0 1px 0 rgba(255,255,255,.7)}
+        .bh-secondary-button:hover{border-color:rgba(127,29,29,.4);background:var(--burgundy-soft);transform:translateY(-1px)}
+        .bh-icon-button{width:37px;height:37px;background:#fff;border:1px solid rgba(239,68,68,.18);box-shadow:0 2px 5px rgba(15,23,42,.07),inset 0 1px 0 rgba(255,255,255,.85)}
+        .bh-icon-button:hover{transform:translateY(-2px);background:#fef2f2;box-shadow:0 5px 10px rgba(15,23,42,.10),0 8px 16px rgba(239,68,68,.10)}
+        .bh-editor-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:3px;padding:6px;background:#f8fafc;border:1px solid #e2e8f0;border-bottom:0;border-radius:10px 10px 0 0}
+        .bh-editor-tool{width:30px;height:29px;display:inline-flex;align-items:center;justify-content:center;color:#475569;background:#fff;border:1px solid #e2e8f0;border-radius:7px;cursor:pointer;font-size:10px}
+        .bh-editor-tool:hover{color:var(--burgundy);background:var(--burgundy-soft);border-color:#e8caca}
+        .bh-toolbar-divider{width:1px;height:20px;margin:0 3px;background:#e2e8f0}
+        .bh-content-editor{min-height:240px;padding:13px;color:#1e293b;background:#fff;border:1px solid #e2e8f0;border-radius:0 0 10px 10px;outline:none;font-size:11px;line-height:1.7}
+        .bh-content-editor:focus{border-color:var(--burgundy);box-shadow:0 0 0 3px rgba(127,29,29,.06)}
+        .bh-file-input{width:100%;padding:8px;color:#475569;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;font-size:10px}
+        .bh-section-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}
+        .bh-section-row .bh-section-heading{grid-column:1;font-weight:700}
+        .bh-section-row .bh-section-body{grid-column:1;grid-row:2;min-height:64px;resize:vertical;font-family:inherit;line-height:1.6}
+        .bh-section-row .bh-icon-button{grid-column:2;grid-row:1 / span 2}
+        .bh-sig-config{padding:11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}
+        .bh-sig-mode{width:auto;min-height:30px;padding:3px 9px;font-size:10px;font-weight:700}
+        .bh-sig-live{margin-top:8px;padding:7px 10px;border:1px dashed #cbd5e1;border-radius:9px;background:#fff;min-height:32px;display:flex;align-items:flex-end;overflow:hidden}
+        .bh-sig-live:empty::before{content:'Preview appears here';font-size:10px;color:#94a3b8;font-family:inherit;font-style:normal}
+        .bh-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:66%;max-height:58%;opacity:.07;z-index:0;pointer-events:none;object-fit:contain;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .bh-watermark[hidden]{display:none !important}
+        .a4-page > *:not(.bh-watermark){position:relative;z-index:1}
+        .bh-draft-button{position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;text-align:left;color:#334155;background:linear-gradient(145deg,#ffffff,#f8fafc);border:1px solid rgba(148,163,184,.28);border-radius:14px;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.04),0 6px 14px rgba(15,23,42,.06),inset 0 1px 0 rgba(255,255,255,.95);transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s ease,border-color .22s ease,background .22s ease}
+        .bh-draft-button:hover{transform:translateY(-2px);border-color:rgba(127,29,29,.25);box-shadow:0 3px 6px rgba(15,23,42,.05),0 12px 24px rgba(15,23,42,.10),inset 0 1px 0 rgba(255,255,255,.95)}
+        .bh-draft-button:hover .bh-draft-button-icon{transform:translateY(-1px);box-shadow:0 4px 9px rgba(127,29,29,.16),inset 0 1px 0 rgba(255,255,255,.95)}
+        .bh-draft-button:active{transform:translateY(0) scale(.995)}
+        .bh-draft-button:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(127,29,29,.14),0 8px 18px rgba(15,23,42,.10)}
+        .bh-draft-button.dark{color:#fff;background:linear-gradient(145deg,#7f1d1d,#991b1b);border-color:rgba(127,29,29,.55);box-shadow:0 2px 4px rgba(127,29,29,.20),0 10px 22px rgba(127,29,29,.28),inset 0 1px 0 rgba(255,255,255,.14)}
+        .bh-draft-button.dark:hover{border-color:#b91c1c;box-shadow:0 4px 8px rgba(127,29,29,.22),0 16px 30px rgba(127,29,29,.34),inset 0 1px 0 rgba(255,255,255,.16)}
+        .bh-draft-button.dark:focus-visible{box-shadow:0 0 0 3px rgba(153,27,27,.22),0 12px 24px rgba(127,29,29,.30)}
+        .bh-draft-button-icon{flex:0 0 36px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;color:var(--burgundy);background:linear-gradient(145deg,#ffffff,#fdeceb);border:1px solid rgba(127,29,29,.12);box-shadow:0 2px 5px rgba(127,29,29,.10),inset 0 1px 0 rgba(255,255,255,.95);transition:transform .22s ease,box-shadow .22s ease,background .22s ease,color .22s ease}
+        .bh-draft-button.dark .bh-draft-button-icon{color:#fff;background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.20);box-shadow:0 2px 5px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.18)}
+        .bh-draft-button strong,.bh-draft-button small{display:block}.bh-draft-button strong{font-size:11.5px;font-weight:700}.bh-draft-button small{margin-top:2px;opacity:.7;font-size:9px}
+        .dark .bh-draft-button:not(.dark){color:#e2e8f0;background:linear-gradient(145deg,#1e293b,#172033);border-color:rgba(71,85,105,.5);box-shadow:0 6px 14px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.04)}
+        .dark .bh-draft-button:not(.dark) .bh-draft-button-icon{color:#fca5a5;background:linear-gradient(145deg,#1f2937,#111827);border-color:rgba(127,29,29,.4)}
+        .tab-panel{animation:bhTabIn .18s ease}@keyframes bhTabIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+        @media(max-width:640px){.bh-editor-tab{flex:0 0 auto}.bh-card-header,.bh-card-body{padding:13px}.bh-editor-toolbar{overflow-x:auto;flex-wrap:nowrap}.bh-editor-tool{flex:0 0 auto}}
+        @media (prefers-reduced-motion: reduce){.bh-editor-card,.bh-section-icon,.bh-input,.bh-primary-button,.bh-secondary-button,.bh-icon-button,.bh-draft-button,.bh-draft-button-icon,.bh-print-coming-card,.bh-print-mini-icon,.bh-print-button{transition:none !important}.bh-printer-machine,.bh-printer-paper,.bh-printer-display-light,.bh-printer-status span,.bh-printer-shadow,.bh-print-status-dot{animation:none !important}.bh-editor-card:hover{transform:none}.bh-editor-card:hover .bh-section-icon{transform:translateZ(12px)}.bh-draft-button:hover{transform:none}.bh-print-coming-card:hover .bh-print-mini-icon{transform:none}}
+        /* A4 Print Source — kept offscreen; revealed only for printing */
+        .bh-print-source{position:fixed;top:0;left:-10000px;width:210mm;background:#fff;z-index:-1;}
+        .a4-page{width:210mm;min-height:297mm;padding:6mm 20mm 8mm;background:#fff;position:relative;transform-origin:top center;display:flex;flex-direction:column;}
+        .a4-footer{margin-top:auto;padding-top:10mm;display:flex;justify-content:space-between;}
+        @media print{
+            @page{size:A4;margin:0}
+            html,body{height:auto !important;min-height:0 !important;}
+            body>*:not(.bh-print-source){display:none !important;}
+            .bh-print-source{position:static;display:block;width:auto;}
+            .bh-print-source .a4-page{width:210mm;min-height:297mm;margin:0;box-shadow:none;transform:none !important;}
+            .bh-print-source #prev-logo{max-height:52px !important;}
+        }
+        .bh-email-overlay{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+        .bh-email-overlay.active{display:flex}
+        .bh-email-overlay .bh-email-coming-card{width:100%;max-width:720px}
+        .bh-email-close{position:absolute;top:10px;right:12px;z-index:2;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(148,163,184,.3);border-radius:10px;background:rgba(255,255,255,.9);color:#64748b;cursor:pointer;transition:.2s}
+        .bh-email-close:hover{color:#0f172a;background:#fff}
+        .bh-email-coming-card{position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;padding:20px;border:1px solid rgba(148,163,184,.25);border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(248,250,252,.96));box-shadow:0 2px 4px rgba(15,23,42,.04),0 8px 18px rgba(15,23,42,.07),0 18px 35px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.95);transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease}
+        .bh-email-coming-card:hover{transform:translateY(-5px);border-color:rgba(37,99,235,.25);box-shadow:0 4px 8px rgba(15,23,42,.05),0 14px 28px rgba(15,23,42,.10),0 28px 55px rgba(37,99,235,.09)}
+        .bh-email-glow{position:absolute;width:180px;height:180px;top:-100px;right:-70px;background:rgba(37,99,235,.08);filter:blur(25px);border-radius:50%;pointer-events:none}
+        .bh-email-icon{position:relative;flex:0 0 auto;width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:15px;color:#2563eb;background:linear-gradient(145deg,#eff6ff,#dbeafe);border:1px solid rgba(37,99,235,.18);box-shadow:0 4px 8px rgba(37,99,235,.10),0 10px 18px rgba(37,99,235,.10),inset 0 1px 1px rgba(255,255,255,.95);transition:transform .3s ease}
+        .bh-email-coming-card:hover .bh-email-icon{transform:translateY(-2px) rotate(-3deg)}
+        .bh-email-icon i{font-size:20px}
+        .bh-email-content{flex:1;min-width:0}
+        .bh-email-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        .bh-email-title-row h3{margin:0;color:#0f172a;font-size:16px;font-weight:750;letter-spacing:-.015em}
+        .bh-coming-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;background:#eff6ff;border:1px solid #dbeafe;color:#2563eb;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 2px 4px rgba(37,99,235,.06)}
+        .bh-coming-badge i{font-size:9px}
+        .bh-email-content p{margin:5px 0 0;color:#64748b;font-size:12px;line-height:1.55}
+        .bh-email-button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 15px;border:1px solid #e2e8f0;border-radius:11px;background:#f8fafc;color:#94a3b8;font-size:12px;font-weight:700;cursor:not-allowed;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(15,23,42,.04)}
+        @media (max-width:640px){.bh-email-coming-card{align-items:flex-start;flex-wrap:wrap}.bh-email-content{padding-top:3px}.bh-email-button{width:100%}}
+        .dark .bh-email-coming-card{background:linear-gradient(145deg,#0f172a,#111c31);border-color:rgba(71,85,105,.55);box-shadow:0 4px 8px rgba(0,0,0,.20),0 14px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.04)}
+        .dark .bh-email-title-row h3{color:#f8fafc}
+        .dark .bh-email-content p{color:#94a3b8}
+        .dark .bh-email-button{background:#172033;border-color:#334155;color:#64748b}
+        .bh-header-btn{position:relative;min-height:38px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:11px;font-size:11px;font-weight:650;white-space:nowrap;box-shadow:0 1px 2px rgba(15,23,42,.04),0 3px 6px rgba(15,23,42,.04),inset 0 1px 0 rgba(255,255,255,.9);transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease}
+        .bh-header-btn:hover{transform:translateY(-2px);box-shadow:0 3px 5px rgba(15,23,42,.06),0 7px 14px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.95)}
+        .bh-header-btn:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(15,23,42,.06),inset 0 2px 4px rgba(15,23,42,.06)}
+        .bh-pdf-btn{position:relative;overflow:hidden;min-height:40px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid rgba(127,29,29,.65);color:#fff;background:linear-gradient(145deg,#991b1b 0%,#7f1d1d 48%,#6b1515 100%);font-size:11px;font-weight:750;letter-spacing:.01em;cursor:pointer;box-shadow:0 2px 4px rgba(127,29,29,.20),0 7px 14px rgba(127,29,29,.18),0 14px 26px rgba(127,29,29,.10),inset 0 1px 0 rgba(255,255,255,.20);transform:translateY(0);transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s ease,filter .22s ease}
+        .bh-pdf-btn:hover{transform:translateY(-2px);filter:brightness(1.05);box-shadow:0 4px 7px rgba(127,29,29,.22),0 10px 20px rgba(127,29,29,.20),0 18px 34px rgba(127,29,29,.12),inset 0 1px 0 rgba(255,255,255,.25)}
+        .bh-pdf-btn:active{transform:translateY(1px);box-shadow:0 2px 4px rgba(127,29,29,.18),inset 0 2px 5px rgba(0,0,0,.18)}
+        .bh-pdf-shine{position:absolute;top:-60%;left:-80%;width:45%;height:220%;transform:rotate(22deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transition:left .6s ease}
+        .bh-pdf-btn:hover .bh-pdf-shine{left:135%}
+        @media (max-width:768px){header{padding-left:12px !important;padding-right:12px !important}.bh-header-btn{width:38px;min-width:38px;padding:0}.bh-pdf-btn{width:40px;min-width:40px;padding:0}.bh-pdf-btn span.relative{gap:0}.bh-card-heading{min-width:0}}
+        @media (max-width:520px){header .text-\[10px\]{max-width:190px}header .bh-header-btn:nth-child(2){display:none}header .bh-header-btn:nth-child(3){display:none}header .w-11{width:40px;height:40px}}
+        .bh-header-btn:focus-visible,.bh-pdf-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(59,130,246,.16),0 5px 12px rgba(15,23,42,.10)}
+        .bh-premium-tabs{position:relative;display:flex;align-items:center;width:100%;padding:5px;gap:4px;border-radius:16px;border:1px solid rgba(148,163,184,.24);background:linear-gradient(145deg,rgba(248,250,252,.98),rgba(241,245,249,.94));box-shadow:0 2px 4px rgba(15,23,42,.04),0 7px 16px rgba(15,23,42,.06),0 16px 28px rgba(15,23,42,.04),inset 0 1px 0 rgba(255,255,255,.95);overflow-x:auto;scrollbar-width:none}
+        .bh-premium-tabs::-webkit-scrollbar{display:none}
+        .bh-premium-tab{position:relative;flex:1 1 0;min-width:max-content;min-height:48px;padding:6px 14px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:12px;background:transparent;color:#64748b;font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap;transition:color .22s ease,background .22s ease,border-color .22s ease,box-shadow .22s ease,transform .22s cubic-bezier(.2,.8,.2,1)}
+        .bh-premium-tab .bh-tab-icon{position:relative;width:30px;height:30px;flex:0 0 30px;display:flex;align-items:center;justify-content:center;border-radius:9px;color:#64748b;background:linear-gradient(145deg,#ffffff,#f1f5f9);border:1px solid rgba(148,163,184,.18);box-shadow:0 2px 4px rgba(15,23,42,.04),inset 0 1px 0 rgba(255,255,255,.95);transition:color .22s ease,background .22s ease,border-color .22s ease,box-shadow .22s ease,transform .22s ease}
+        .bh-premium-tab .bh-tab-icon i{font-size:12px;transition:transform .22s ease}
+        .bh-premium-tab:hover{color:#334155;background:rgba(255,255,255,.68);border-color:rgba(148,163,184,.18);box-shadow:0 2px 5px rgba(15,23,42,.04),inset 0 1px 0 rgba(255,255,255,.9);transform:translateY(-1px)}
+        .bh-premium-tab:hover .bh-tab-icon{color:#2563eb;border-color:rgba(37,99,235,.15);background:linear-gradient(145deg,#eff6ff,#dbeafe);transform:translateY(-1px);box-shadow:0 3px 6px rgba(37,99,235,.08),inset 0 1px 0 rgba(255,255,255,.95)}
+        .bh-premium-tab:hover .bh-tab-icon i{transform:scale(1.08)}
+        .bh-premium-tab.active{color:#1d4ed8;background:linear-gradient(145deg,#ffffff,#f8fbff);border-color:rgba(37,99,235,.16);box-shadow:0 3px 6px rgba(15,23,42,.05),0 7px 14px rgba(37,99,235,.08),inset 0 1px 0 rgba(255,255,255,1);transform:translateY(-1px)}
+        .bh-premium-tab.active .bh-tab-icon{color:#2563eb;background:linear-gradient(145deg,#eff6ff,#dbeafe);border-color:rgba(37,99,235,.22);box-shadow:0 3px 6px rgba(37,99,235,.10),0 7px 13px rgba(37,99,235,.08),inset 0 1px 0 rgba(255,255,255,1);transform:translateY(-1px)}
+        .bh-premium-tab.active .bh-tab-icon i{transform:scale(1.08)}
+        .bh-tab-active-dot{position:absolute;left:50%;bottom:2px;width:0;height:3px;border-radius:999px;background:linear-gradient(90deg,#2563eb,#3b82f6);transform:translateX(-50%);opacity:0;box-shadow:0 2px 6px rgba(37,99,235,.30);transition:width .25s ease,opacity .25s ease}
+        .bh-premium-tab.active .bh-tab-active-dot{width:28px;opacity:1}
+        .bh-premium-tab.active::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 50% 0%,rgba(37,99,235,.08),transparent 65%);pointer-events:none}
+        .bh-premium-tab:active{transform:translateY(1px) scale(.99)}
+        .bh-premium-tab:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.12),0 5px 12px rgba(15,23,42,.08)}
+        @media (max-width:640px){.bh-premium-tabs{padding:4px;border-radius:14px;gap:3px}.bh-premium-tab{min-height:44px;padding:5px 10px;gap:6px;font-size:11px}.bh-premium-tab .bh-tab-icon{width:27px;height:27px;flex-basis:27px;border-radius:8px}.bh-premium-tab .bh-tab-icon i{font-size:11px}.bh-tab-active-dot{bottom:1px}}
+        .dark .bh-premium-tabs{border-color:rgba(71,85,105,.48);background:linear-gradient(145deg,rgba(15,23,42,.98),rgba(17,28,49,.96));box-shadow:0 4px 10px rgba(0,0,0,.20),0 14px 28px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.04)}
+        .dark .bh-premium-tab{color:#94a3b8}
+        .dark .bh-premium-tab:hover{color:#e2e8f0;background:rgba(30,41,59,.72);border-color:rgba(71,85,105,.38)}
+        .dark .bh-premium-tab .bh-tab-icon{color:#94a3b8;background:linear-gradient(145deg,#1e293b,#172033);border-color:rgba(71,85,105,.40);box-shadow:0 2px 5px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04)}
+        .dark .bh-premium-tab.active{color:#60a5fa;background:linear-gradient(145deg,#1e293b,#172033);border-color:rgba(59,130,246,.24);box-shadow:0 4px 10px rgba(0,0,0,.20),0 8px 18px rgba(37,99,235,.10),inset 0 1px 0 rgba(255,255,255,.05)}
+        .dark .bh-premium-tab.active .bh-tab-icon{color:#60a5fa;background:linear-gradient(145deg,#172554,#1e3a8a);border-color:rgba(59,130,246,.25)}
+        .bh-ui-overlay{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.50);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+        .bh-ui-overlay.active{display:flex}
+        .bh-ui-card{position:relative;width:100%;max-width:430px;padding:22px;border:1px solid rgba(148,163,184,.25);border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.99),rgba(248,250,252,.97));box-shadow:0 4px 8px rgba(15,23,42,.05),0 18px 38px rgba(15,23,42,.14),0 30px 60px rgba(15,23,42,.12),inset 0 1px 0 rgba(255,255,255,.95);text-align:center;animation:bhUiIn .2s cubic-bezier(.2,.8,.2,1)}
+        @keyframes bhUiIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+        .bh-ui-icon{width:52px;height:52px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;border-radius:15px;font-size:20px}
+        .bh-ui-card[data-variant="info"] .bh-ui-icon{color:#2563eb;background:linear-gradient(145deg,#eff6ff,#dbeafe);border:1px solid rgba(37,99,235,.18);box-shadow:0 4px 8px rgba(37,99,235,.10),inset 0 1px 1px rgba(255,255,255,.95)}
+        .bh-ui-card[data-variant="success"] .bh-ui-icon{color:#047857;background:linear-gradient(145deg,#ecfdf5,#d1fae5);border:1px solid rgba(5,150,105,.18);box-shadow:0 4px 8px rgba(5,150,105,.10),inset 0 1px 1px rgba(255,255,255,.95)}
+        .bh-ui-card[data-variant="error"] .bh-ui-icon{color:#b91c1c;background:linear-gradient(145deg,#fef2f2,#fee2e2);border:1px solid rgba(185,28,28,.18);box-shadow:0 4px 8px rgba(185,28,28,.10),inset 0 1px 1px rgba(255,255,255,.95)}
+        .bh-ui-card[data-variant="warning"] .bh-ui-icon{color:#b45309;background:linear-gradient(145deg,#fffbeb,#fef3c7);border:1px solid rgba(217,119,6,.20);box-shadow:0 4px 8px rgba(217,119,6,.10),inset 0 1px 1px rgba(255,255,255,.95)}
+        .bh-ui-title{margin:0;font-size:16px;font-weight:800;color:#0f172a;letter-spacing:-.01em}
+        .bh-ui-message{margin:7px 0 0;font-size:12.5px;line-height:1.6;color:#64748b}
+        .bh-ui-actions{margin-top:18px;display:flex;gap:9px;justify-content:center}
+        .bh-ui-actions .bh-secondary-button,.bh-ui-actions .bh-primary-button{flex:1 1 0;max-width:180px;min-height:40px;padding:0 20px;font-size:12px}
+        .dark .bh-ui-card{background:linear-gradient(145deg,rgba(15,23,42,.99),rgba(17,28,49,.97));border-color:rgba(71,85,105,.48);box-shadow:0 18px 38px rgba(0,0,0,.34),0 30px 60px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05)}
+        .dark .bh-ui-title{color:#e2e8f0}
+        .dark .bh-ui-message{color:#94a3b8}
+        @media (max-width:520px){.bh-ui-card{max-width:100%;padding:20px}.bh-ui-actions{flex-direction:column}.bh-ui-actions .bh-secondary-button,.bh-ui-actions .bh-primary-button{max-width:none;width:100%}}
+        .bh-draft-modal{position:fixed;inset:0;z-index:65;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.50);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+        .bh-draft-modal.active{display:flex}
+        .bh-draft-card{position:relative;width:100%;max-width:520px;max-height:86vh;display:flex;flex-direction:column;border:1px solid rgba(148,163,184,.25);border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.99),rgba(248,250,252,.97));box-shadow:0 4px 8px rgba(15,23,42,.05),0 18px 38px rgba(15,23,42,.16),0 30px 60px rgba(15,23,42,.14),inset 0 1px 0 rgba(255,255,255,.95);overflow:hidden;animation:bhUiIn .2s cubic-bezier(.2,.8,.2,1)}
+        .bh-draft-card .bh-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border-radius:20px 20px 0 0}
+        .bh-draft-card .bh-card-body{overflow-y:auto}
+        .bh-draft-list{display:flex;flex-direction:column;gap:8px;padding:2px}
+        .draft-item{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid rgba(148,163,184,.24);border-radius:12px;background:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.04);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+        .draft-item:hover{transform:translateY(-1px);border-color:rgba(127,29,29,.28);box-shadow:0 6px 14px rgba(15,23,42,.08)}
+        .draft-item:focus-visible{outline:none;border-color:var(--burgundy);box-shadow:0 0 0 3px rgba(127,29,29,.12)}
+        .draft-item-main{flex:1;min-width:0}
+        .draft-item-title{font-size:12px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .draft-item-meta{margin-top:2px;font-size:10px;color:#64748b}
+        .draft-item-delete{flex:0 0 auto;width:31px;height:31px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(239,68,68,.28);border-radius:9px;background:linear-gradient(145deg,#fef2f2,#fee2e2);color:#dc2626;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease,color .18s ease}
+        .draft-item-delete:hover{transform:translateY(-1px);background:linear-gradient(145deg,#fee2e2,#fecaca);color:#b91c1c;box-shadow:0 6px 14px rgba(220,38,38,.2)}
+        .draft-item-delete:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(220,38,38,.2)}
+        .draft-item-delete i{font-size:12px}
+        .bh-draft-empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 12px;text-align:center;color:#94a3b8}
+        .bh-draft-empty[hidden]{display:none}
+        .bh-draft-empty i{font-size:24px}
+        .bh-draft-empty strong{font-size:12px;color:#475569}
+        .bh-draft-empty span{font-size:10px}
+        .bh-draft-notice{margin:0 0 10px;padding:8px 11px;border-radius:10px;font-size:11px;background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+        .bh-draft-card-footer{display:flex;justify-content:flex-end;gap:8px;padding:13px;border-top:1px solid rgba(148,163,184,.18);background:rgba(248,250,252,.7)}
+        .dark .bh-draft-card{background:linear-gradient(145deg,rgba(15,23,42,.99),rgba(17,28,49,.97));border-color:rgba(71,85,105,.48);box-shadow:0 18px 38px rgba(0,0,0,.34),0 30px 60px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05)}
+        .dark .draft-item{background:#1e293b;border-color:rgba(71,85,105,.45);color:#e2e8f0}
+        .dark .draft-item-title{color:#e2e8f0}
+        .dark .draft-item-delete{background:linear-gradient(145deg,#3f1d1d,#4a1d1d);border-color:rgba(248,113,113,.35);color:#fca5a5}
+        .dark .draft-item-delete:hover{background:linear-gradient(145deg,#4a1d1d,#5b2020);color:#fecaca}
+        .dark .bh-draft-card-footer{background:rgba(15,23,42,.5);border-top-color:rgba(71,85,105,.35)}
+        @media (max-width:520px){.bh-draft-card{max-width:100%;max-height:90vh}.bh-draft-card .bh-card-header,.bh-draft-card .bh-card-body{padding:14px}}
+        .print-file-group{margin-top:12px}
+        .print-file-group:first-child{margin-top:0}
+        .print-file-group-title{margin:0 0 7px 3px;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8}
+        .file-item-icon{flex:0 0 auto;width:31px;height:31px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:#7f1d1d;border:1px solid rgba(127,29,29,.18);background:linear-gradient(145deg,#fff1f2,#fde2e4)}
+        .file-item-icon i{font-size:13px}
+        .file-item-print{flex:0 0 auto;width:31px;height:31px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:#2563eb;border:1px solid #bfdbfe;background:linear-gradient(145deg,#eff6ff,#dbeafe)}
+        .file-item-print i{font-size:12px}
+        .dark .file-item-icon{background:linear-gradient(145deg,#3f1d1d,#4a1d1d);border-color:rgba(248,113,113,.3);color:#fca5a5}
+        .dark .file-item-print{background:linear-gradient(145deg,#0b2447,#12325f);border-color:rgba(96,165,250,.3);color:#93c5fd}
+        .bh-print-coming-card{position:relative;isolation:isolate;display:flex;align-items:center;justify-content:space-between;gap:30px;min-height:220px;margin-top:16px;padding:24px 28px;overflow:hidden;border:1px solid #e2e8f0;border-radius:22px;background:radial-gradient(circle at 100% 50%,rgba(37,99,235,.08),transparent 35%),linear-gradient(145deg,#fff,#f8fafc 60%,#f1f5f9);box-shadow:0 2px 5px rgba(15,23,42,.05),0 12px 30px rgba(15,23,42,.07),inset 0 1px 0 #fff}
+        .bh-print-bg-glow{position:absolute;width:260px;height:260px;right:60px;top:50%;transform:translateY(-50%);border-radius:50%;background:rgba(59,130,246,.08);filter:blur(35px);pointer-events:none}
+        .bh-print-coming-content{position:relative;z-index:3;flex:1;min-width:0;max-width:620px}
+        .bh-print-coming-eyebrow{display:flex;align-items:center;gap:7px;margin-bottom:10px;color:#64748b;font-size:9px;font-weight:800;letter-spacing:.12em}
+        .bh-print-status-dot{width:7px;height:7px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.1),0 0 10px rgba(245,158,11,.35);animation:bhPrintStatusPulse 2s ease-in-out infinite}
+        @keyframes bhPrintStatusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
+        .bh-print-coming-title-row{display:flex;align-items:center;gap:12px}
+        .bh-print-mini-icon{flex-shrink:0;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;color:#2563eb;border:1px solid #bfdbfe;background:linear-gradient(145deg,#eff6ff,#dbeafe);box-shadow:0 4px 10px rgba(37,99,235,.13),inset 0 1px 0 #fff;transition:transform .25s ease}
+        .bh-print-coming-card:hover .bh-print-mini-icon{transform:translateY(-2px) rotate(-3deg)}
+        .bh-print-mini-icon i{font-size:18px}
+        .bh-print-coming-title-row h3{margin:0;color:#0f172a;font-size:17px;font-weight:800;line-height:1.2}
+        .bh-print-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:39px;padding:8px 14px;border:1px solid #cbd5e1;border-radius:10px;background:linear-gradient(145deg,#f8fafc,#e2e8f0);color:#64748b;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 5px rgba(15,23,42,.06),inset 0 1px 0 #fff;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,color .2s ease}
+        .bh-print-button:hover{transform:translateY(-1px);border-color:#bfdbfe;color:#2563eb;box-shadow:0 5px 12px rgba(37,99,235,.12),inset 0 1px 0 #fff}
+        .bh-print-button:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+        .bh-print-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        .bh-print-button.primary{border-color:#bfdbfe;color:#2563eb;background:linear-gradient(145deg,#eff6ff,#dbeafe)}
+        .bh-print-button.primary:hover{color:#1d4ed8;border-color:#93c5fd;box-shadow:0 6px 14px rgba(37,99,235,.18),inset 0 1px 0 #fff}
+        .bh-print-button:disabled{opacity:.5;cursor:not-allowed;transform:none;color:#94a3b8;border-color:#e2e8f0;background:linear-gradient(145deg,#f8fafc,#f1f5f9);box-shadow:none}
+        .bh-print-button:disabled:hover{transform:none;box-shadow:none}
+        .bh-print-filename{margin:10px 0 0;font-size:11px;color:#2563eb;font-weight:600;word-break:break-all}
+        .bh-print-filename::before{content:"\f15b";font-family:"Font Awesome 6 Free";font-weight:900;margin-right:6px;color:#93c5fd}
+        .bh-printer-animation-area{position:relative;flex-shrink:0;width:310px;height:182px;display:flex;align-items:center;justify-content:center}
+        .bh-printer-status{position:absolute;top:0;right:4px;z-index:10;display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #bbf7d0;border-radius:7px;background:rgba(240,253,244,.9);color:#15803d;font-size:8px;font-weight:800;box-shadow:0 3px 8px rgba(22,101,52,.08)}
+        .bh-printer-status span{width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.6);animation:bhPrinterReady 1.8s infinite}
+        @keyframes bhPrinterReady{0%,100%{opacity:1}50%{opacity:.35}}
+        .bh-printer-stack{position:relative;z-index:5;display:flex;align-items:flex-end;justify-content:center}
+        .bh-printer-machine-wrap{transform-origin:bottom center}
+        .bh-printer-machine{position:relative;width:190px;height:130px;animation:bhPrinterFloat 3.5s ease-in-out infinite}
+        @keyframes bhPrinterFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+        .bh-printer-paper{position:absolute;z-index:1;left:52px;top:-29px;width:86px;height:57px;padding:13px 10px;border:1px solid #dbe3ef;border-radius:4px 4px 7px 7px;background:linear-gradient(145deg,#fff,#f8fafc);box-shadow:0 3px 7px rgba(15,23,42,.08);animation:bhPaperPrint 2.8s ease-in-out infinite}
+        @keyframes bhPaperPrint{0%,25%{transform:translateY(-8px);opacity:.65}45%,75%{transform:translateY(5px);opacity:1}100%{transform:translateY(-8px);opacity:.65}}
+        .bh-paper-line{width:100%;height:3px;margin-bottom:6px;border-radius:5px;background:#cbd5e1}
+        .bh-paper-line.short{width:55%}
+        .bh-paper-line.medium{width:72%}
+        .bh-printer-top{position:absolute;z-index:3;left:35px;top:8px;width:120px;height:27px;border-radius:12px 12px 5px 5px;background:linear-gradient(145deg,#475569,#1e293b);border:1px solid #334155;box-shadow:0 4px 8px rgba(15,23,42,.2),inset 0 1px 0 rgba(255,255,255,.18)}
+        .bh-printer-body{position:absolute;z-index:4;left:18px;top:29px;width:155px;height:82px;border-radius:12px 12px 10px 10px;border:1px solid #334155;background:linear-gradient(145deg,#64748b,#475569 45%,#334155);box-shadow:0 12px 18px rgba(15,23,42,.22),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -4px 10px rgba(15,23,42,.12)}
+        .bh-printer-display{position:absolute;top:13px;right:13px;display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;background:#0f172a;color:#86efac;font-size:6px;font-weight:800;letter-spacing:.06em;box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
+        .bh-printer-display-light{width:4px;height:4px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:bhDisplayBlink 1.5s infinite}
+        @keyframes bhDisplayBlink{0%,100%{opacity:1}50%{opacity:.35}}
+        .bh-printer-slot{position:absolute;left:25px;right:25px;top:48px;height:9px;border-radius:5px;background:#0f172a;box-shadow:inset 0 2px 4px rgba(0,0,0,.65)}
+        .bh-printer-controls{position:absolute;left:14px;top:14px;display:flex;gap:4px}
+        .bh-printer-controls span{width:5px;height:5px;border-radius:50%;background:#94a3b8;box-shadow:inset 0 1px 1px rgba(255,255,255,.35)}
+        .bh-printer-bottom{position:absolute;z-index:2;left:28px;bottom:0;width:135px;height:24px;border-radius:5px 5px 10px 10px;background:linear-gradient(145deg,#334155,#1e293b);border:1px solid #1e293b;box-shadow:0 5px 10px rgba(15,23,42,.18)}
+        .bh-printer-shadow{position:absolute;bottom:9px;width:180px;height:18px;border-radius:50%;background:rgba(15,23,42,.16);filter:blur(8px);animation:bhPrinterShadow 3.5s ease-in-out infinite}
+        @keyframes bhPrinterShadow{0%,100%{transform:scaleX(1);opacity:.65}50%{transform:scaleX(.85);opacity:.4}}
+        .dark .bh-print-coming-card{background:radial-gradient(circle at 100% 50%,rgba(37,99,235,.14),transparent 35%),linear-gradient(145deg,#0f172a,#111c31);border-color:rgba(71,85,105,.55);box-shadow:0 12px 30px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
+        .dark .bh-print-coming-title-row h3{color:#e2e8f0}
+        .dark .bh-printer-paper{background:linear-gradient(145deg,#e2e8f0,#cbd5e1);border-color:#94a3b8}
+        .dark .bh-paper-line{background:#94a3b8}
+        @media(max-width:760px){.bh-print-coming-card{flex-direction:column;align-items:stretch;padding:20px;gap:10px}.bh-print-coming-content{max-width:none}.bh-printer-animation-area{width:100%;height:180px}.bh-printer-status{right:15px}}
+        @media(max-width:480px){.bh-print-coming-card{border-radius:18px;padding:17px}.bh-print-coming-title-row h3{font-size:15px}.bh-printer-animation-area{height:150px;transform:scale(.82)}.bh-print-button{width:100%}}
+        .bh-header-menu{background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 10px 30px rgba(15,23,42,.14),0 2px 6px rgba(15,23,42,.06);padding:6px;z-index:50;opacity:0;visibility:hidden;transform:translateY(-10px) scale(.96);transform-origin:top right;pointer-events:none;transition:opacity .18s ease,transform .24s cubic-bezier(.22,1,.36,1),visibility .24s}
+        .bh-header-menu.open{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto}
+        .bh-header-menu.open>.bh-menu-item,.bh-header-menu.open>.bh-menu-user,.bh-header-menu.open>.bh-menu-sep,.bh-header-menu.open>.bh-menu-version{animation:bhMenuIn .28s cubic-bezier(.22,1,.36,1) both}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(1){animation-delay:.03s}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(2){animation-delay:.06s}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(3){animation-delay:.09s}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(4){animation-delay:.12s}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(5){animation-delay:.15s}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(6){animation-delay:.18s}
+        .bh-header-menu.open>.bh-menu-item:nth-of-type(7){animation-delay:.21s}
+        @keyframes bhMenuIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+        @media (prefers-reduced-motion: reduce){.bh-header-menu,.bh-header-menu>*{transition:none !important;animation:none !important;transform:none !important}}
+        .bh-menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:600;color:#334155;text-align:left;background:transparent;border:0;cursor:pointer;transition:background .15s,color .15s}
+        .bh-menu-item:hover{background:#f1f5f9;color:#0f172a}
+        .bh-menu-item i{width:16px;text-align:center;color:#64748b;flex:none}
+        .bh-menu-danger{color:#b91c1c}
+        .bh-menu-danger i{color:#dc2626}
+        .bh-menu-danger:hover{background:#fef2f2;color:#b91c1c}
+        .bh-menu-sep{height:1px;background:#f1f5f9;margin:6px 4px}
+        .bh-menu-user{display:flex;align-items:center;gap:10px;padding:8px 10px}
+        .bh-menu-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+        .bh-menu-name{margin:0;font-size:13px;font-weight:800;color:#0f172a;line-height:1.2}
+        .bh-menu-mail{margin:0;font-size:11px;color:#64748b}
+        .bh-menu-version{margin:6px 4px 2px;padding-top:6px;border-top:1px solid #f1f5f9;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;text-align:center}
+        .bh-header-avatar{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+        .bh-footer{flex-shrink:0;padding:5px 14px;border-top:1px solid rgba(226,232,240,.8);background:rgba(255,255,255,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;font-size:9px;color:#64748b;line-height:1.4;text-align:left}
+        .bh-footer-info{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:2px 8px;flex:1 1 auto;min-width:0}
+        .bh-footer-company{color:#475569;font-weight:800}
+        .bh-footer-sep{color:#cbd5e1}
+        .bh-footer a{color:#64748b;text-decoration:none;border-bottom:1px dotted #cbd5e1;transition:color .15s,border-color .15s}
+        .bh-footer a:hover{color:#b91c1c;border-bottom-color:#b91c1c}
+        .bh-footer-version{font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;padding:1px 8px;border:1px solid #e2e8f0;border-radius:999px;background:#f8fafc}
+        .dark .bh-header-menu{background:#0f172a;border-color:#1e293b;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+        .dark .bh-menu-item{color:#cbd5e1}
+        .dark .bh-menu-item:hover{background:#1e293b;color:#fff}
+        .dark .bh-menu-name{color:#f1f5f9}
+        .dark .bh-menu-sep{border-color:#1e293b;background:#1e293b}
+        .dark .bh-footer{background:rgba(15,23,42,.85);border-color:#1e293b;color:#94a3b8}
+        .dark .bh-footer-company{color:#cbd5e1}
+        .dark .bh-footer a{color:#94a3b8;border-bottom-color:#334155}
+        .dark .bh-footer a:hover{color:#fca5a5;border-bottom-color:#fca5a5}
+        .dark .bh-footer-version{background:#0b1220;border-color:#1e293b;color:#94a3b8}
+    </style>
+</head>
+<body class="h-full flex flex-col bg-corporate-slate">
+    <header class="sticky top-0 z-40 flex-shrink-0 px-4 sm:px-6 py-3
+        bg-white/95 backdrop-blur-xl
+        border-b border-slate-200/80
+        shadow-[0_4px_20px_rgba(15,23,42,0.06)]">
+
+        <div class="flex items-center justify-between gap-4">
+
+            <!-- BRAND -->
+            <div class="flex items-center min-w-0">
+                <img src="Logo.png" alt="BEHAVIOR HOTEL" class="h-10 sm:h-12 md:h-14 w-auto max-w-[220px] sm:max-w-[300px] object-contain">
+            </div>
+
+            <!-- ACTIONS -->
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+
+                <!-- Desktop actions -->
+                <div class="hidden md:flex items-center gap-1.5 sm:gap-2">
+                    <button type="button" onclick="app.newDocument()" title="Create a new document"
+                        class="bh-header-btn group text-slate-700 bg-white border border-slate-200 hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-700">
+                        <i class="fa-solid fa-file-circle-plus group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden lg:inline">New</span>
+                    </button>
+
+                    <button type="button" onclick="app.emailComingSoon()" title="Email — Coming Soon"
+                        class="bh-header-btn text-slate-500 bg-slate-50/80 border border-slate-200 hover:bg-slate-100">
+                        <i class="fa-solid fa-envelope"></i>
+                        <span class="hidden lg:inline">Email</span>
+                        <span class="hidden xl:inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-blue-50 text-blue-600 border border-blue-100">SOON</span>
+                    </button>
+
+                    <button type="button" onclick="app.saveDraftManually()" title="Save current document as draft"
+                        class="bh-header-btn text-slate-700 bg-white border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-700">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span class="hidden lg:inline">Save Draft</span>
+                    </button>
+
+                    <div class="w-px h-7 bg-slate-200 mx-0.5"></div>
+
+                    <button type="button" onclick="app.printDocument()" title="Print document"
+                        class="bh-header-btn text-white bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-900 shadow-[0_3px_6px_rgba(15,23,42,0.18),0_7px_14px_rgba(15,23,42,0.10)] hover:from-slate-700 hover:to-slate-900">
+                        <i class="fa-solid fa-print"></i>
+                        <span class="hidden sm:inline">Print</span>
+                    </button>
+
+                    <button type="button" onclick="app.downloadPDF()" title="Export document as PDF" class="bh-pdf-btn">
+                        <span class="relative z-10 flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span class="hidden sm:inline">Export PDF</span>
+                        </span>
+                        <span class="bh-pdf-shine"></span>
+                    </button>
+
+                    <div class="w-px h-7 bg-slate-200 mx-0.5"></div>
+
+                    <!-- Desktop profile -->
+                    <div class="relative">
+                        <button type="button" id="desktop-profile-btn" aria-haspopup="true" aria-expanded="false" aria-controls="desktop-profile-menu" title="Account"
+                            class="bh-header-btn text-slate-700 bg-white border border-slate-200 hover:bg-slate-100">
+                            <span class="bh-header-avatar">BH</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] text-slate-400 hidden lg:inline"></i>
+                        </button>
+                        <div id="desktop-profile-menu" role="menu" aria-label="Account menu" class="bh-header-menu absolute right-0 mt-2 w-64">
+                            <div class="bh-menu-user">
+                                <span class="bh-menu-avatar">BH</span>
+                                <div class="min-w-0">
+                                    <p class="bh-menu-name">Behavior Hotel</p>
+                                    <p class="bh-menu-mail truncate">t.chiaracane@behaviorhotel.eu</p>
+                                </div>
+                            </div>
+                            <div class="bh-menu-sep"></div>
+                            <button type="button" role="menuitem" class="bh-menu-item" onclick="app.settingsComingSoon()"><i class="fa-solid fa-gear"></i> Settings</button>
+                            <button type="button" role="menuitem" class="bh-menu-item bh-menu-danger" onclick="app.signOutComingSoon()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+                            <p class="bh-menu-version">Version 0.1</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile menu -->
+                <div class="relative md:hidden">
+                    <button type="button" id="mobile-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="mobile-actions-menu" title="Menu"
+                        class="bh-header-btn text-slate-700 bg-white border border-slate-200 hover:bg-slate-100">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div id="mobile-actions-menu" role="menu" aria-label="Actions menu" class="bh-header-menu absolute right-0 mt-2 w-64">
+                        <div class="bh-menu-user">
+                            <span class="bh-menu-avatar">BH</span>
+                            <div class="min-w-0">
+                                <p class="bh-menu-name">Behavior Hotel</p>
+                                <p class="bh-menu-mail truncate">t.chiaracane@behaviorhotel.eu</p>
+                            </div>
+                        </div>
+                        <div class="bh-menu-sep"></div>
+                        <button type="button" role="menuitem" class="bh-menu-item" onclick="app.newDocument()"><i class="fa-solid fa-file-circle-plus"></i> New Document</button>
+                        <button type="button" role="menuitem" class="bh-menu-item" onclick="app.emailComingSoon()"><i class="fa-solid fa-envelope"></i> Email <span class="ml-auto text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-1.5 py-0.5">SOON</span></button>
+                        <button type="button" role="menuitem" class="bh-menu-item" onclick="app.saveDraftManually()"><i class="fa-solid fa-floppy-disk"></i> Save Draft</button>
+                        <button type="button" role="menuitem" class="bh-menu-item" onclick="app.printDocument()"><i class="fa-solid fa-print"></i> Print</button>
+                        <button type="button" role="menuitem" class="bh-menu-item" onclick="app.downloadPDF()"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
+                        <div class="bh-menu-sep"></div>
+                        <button type="button" role="menuitem" class="bh-menu-item" onclick="app.settingsComingSoon()"><i class="fa-solid fa-gear"></i> Settings</button>
+                        <button type="button" role="menuitem" class="bh-menu-item bh-menu-danger" onclick="app.signOutComingSoon()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+                        <p class="bh-menu-version">Version 0.1</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </header>
+    <div class="flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden">
+        <div id="editor-panel" class="w-full h-full overflow-y-auto bg-white">
+            <div class="p-4">
+                <div class="bh-editor-tabs-wrap mb-5">
+                    <div id="input-tab-list" class="bh-editor-tabs bh-premium-tabs" role="tablist" aria-label="Document editor sections">
+                        <button type="button" id="tab-btn-type" class="bh-editor-tab bh-premium-tab active" role="tab" aria-selected="true" aria-controls="tab-type" tabindex="0" onclick="switchInputTab('type')">
+                            <span class="bh-tab-icon"><i class="fa-solid fa-file-lines"></i></span>
+                            <span class="bh-tab-text">Type</span>
+                            <span class="bh-tab-active-dot"></span>
+                        </button>
+                        <button type="button" id="tab-btn-parties" class="bh-editor-tab bh-premium-tab" role="tab" aria-selected="false" aria-controls="tab-parties" tabindex="-1" onclick="switchInputTab('parties')">
+                            <span class="bh-tab-icon"><i class="fa-solid fa-users"></i></span>
+                            <span class="bh-tab-text">Parties</span>
+                            <span class="bh-tab-active-dot"></span>
+                        </button>
+                        <button type="button" id="tab-btn-content" class="bh-editor-tab bh-premium-tab" role="tab" aria-selected="false" aria-controls="tab-content" tabindex="-1" onclick="switchInputTab('content')">
+                            <span class="bh-tab-icon"><i class="fa-solid fa-align-left"></i></span>
+                            <span class="bh-tab-text">
+                                <span class="hidden sm:inline">Content and Signature</span>
+                                <span class="sm:hidden">Content</span>
+                            </span>
+                            <span class="bh-tab-active-dot"></span>
+                        </button>
+                        <button type="button" id="tab-btn-drafts" class="bh-editor-tab bh-premium-tab" role="tab" aria-selected="false" aria-controls="tab-drafts" tabindex="-1" onclick="switchInputTab('drafts')">
+                            <span class="bh-tab-icon"><i class="fa-solid fa-folder-open"></i></span>
+                            <span class="bh-tab-text">Drafts</span>
+                            <span class="bh-tab-active-dot"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div id="tab-type" class="tab-panel space-y-4" role="tabpanel" aria-labelledby="tab-btn-type">
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-file-lines"></i></div>
+                                    <div><h3>Document Type</h3><p>Select the official document you want to prepare.</p></div>
+                                </div>
+                            </div>
+                            <div class="bh-card-body">
+                                <label for="doc-type" class="bh-field-label">Document Type <span>*</span></label>
+                                <div class="flex gap-2 mt-2">
+                                    <select id="doc-type" onchange="app.handleDocTypeChange(this)" class="bh-input flex-1">
+                                        <option>Termination Notice</option><option>Warning Letter</option><option>Employment Confirmation</option><option>Disciplinary Notice</option><option>Salary Letter</option><option>Experience Letter</option><option>General Official Letter</option><option>Prohibited or Restricted</option><option value="__custom__">Add Field</option>
+                                    </select>
+                                    <button type="button" id="del-custom" onclick="app.deleteDocType()" title="Delete custom type" class="bh-icon-button text-red-600 hidden"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                                <div id="custom-doc-type-controls" class="mt-4 hidden">
+                                    <label for="custom-doc-type-input" class="bh-field-label">Custom Document Type</label>
+                                    <div class="flex gap-2 mt-2"><input type="text" id="custom-doc-type-input" placeholder="Enter a new document type" class="bh-input flex-1"><button type="button" onclick="app.addDocType()" class="bh-primary-button"><i class="fa-solid fa-plus mr-1"></i>Add</button></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-circle-info"></i></div>
+                                    <div><h3>Document Metadata</h3><p>Official date, reference number and confidentiality.</p></div>
+                                </div>
+                            </div>
+                            <div class="bh-card-body">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="input-date" class="bh-field-label">Document Date</label>
+                                        <div class="bh-input-icon-wrap"><i class="fa-solid fa-calendar-days"></i><input type="date" id="input-date" onchange="app.updateField('date', this.value)" class="bh-input bh-input-with-icon"></div>
+                                        <p class="bh-help-text">Official date shown on the document.</p>
+                                    </div>
+                                    <div>
+                                        <label for="input-ref" class="bh-field-label">Reference Number</label>
+                                        <div class="flex mt-2">
+                                            <input type="text" id="input-ref" oninput="app.updateField('refNumber', this.value)" placeholder="e.g. BH-HR-2026-001" class="bh-input rounded-r-none">
+                                            <button type="button" onclick="app.generateRefNumber()" class="bh-secondary-button rounded-l-none border-l-0"><i class="fa-solid fa-rotate mr-1"></i>Gen</button>
+                                        </div>
+                                        <p class="bh-help-text">Optional internal document reference.</p>
+                                    </div>
+                                </div>
+                                <div class="mt-5">
+                                    <label for="input-conf" class="bh-field-label">Confidentiality</label>
+                                    <div class="bh-input-icon-wrap"><i class="fa-solid fa-lock"></i><select id="input-conf" onchange="app.updateConf(this.value)" class="bh-input bh-input-with-icon"><option value="STRICTLY CONFIDENTIAL">STRICTLY CONFIDENTIAL</option><option value="CONFIDENTIAL">CONFIDENTIAL</option></select></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tab-parties" class="tab-panel space-y-5 hidden" role="tabpanel" aria-labelledby="tab-btn-parties">
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-user"></i></div>
+                                    <div><h3>Recipient Details</h3><p>Information about the employee or recipient.</p></div>
+                                </div>
+                            </div>
+                            <div class="bh-card-body">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label for="input-recipient-name" class="bh-field-label">Recipient Full Name <span>*</span></label><input type="text" id="input-recipient-name" oninput="app.updateField('recipientName', this.value)" placeholder="e.g. John Smith" class="bh-input"></div>
+                                    <div><label for="input-recipient-id" class="bh-field-label">Employee ID / Code</label><input type="text" id="input-recipient-id" oninput="app.updateField('recipientId', this.value)" placeholder="e.g. BH-EMP-409" class="bh-input"></div>
+                                    <div><label for="input-recipient-position" class="bh-field-label">Job Position / Title</label><input type="text" id="input-recipient-position" oninput="app.updateField('recipientPosition', this.value)" placeholder="e.g. Front Desk Receptionist" class="bh-input"></div>
+                                    <div><label for="input-recipient-dept" class="bh-field-label">Department</label><input type="text" id="input-recipient-dept" oninput="app.updateField('recipientDept', this.value)" placeholder="e.g. Hospitality &amp; Guest Relations" class="bh-input"></div>
+                                </div>
+                                <div class="mt-4"><label for="input-recipient-address" class="bh-field-label">Recipient Address / Residence</label><textarea id="input-recipient-address" rows="3" oninput="app.updateField('recipientAddress', this.value)" placeholder="Street address, city, country" class="bh-input resize-y"></textarea></div>
+                            </div>
+                        </div>
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-building-user"></i></div>
+                                    <div><h3>Issuing Authority</h3><p>Person and department officially issuing the document.</p></div>
+                                </div>
+                            </div>
+                            <div class="bh-card-body">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div><label for="input-sender-name" class="bh-field-label">Representative Name</label><input type="text" id="input-sender-name" value="S. Chianello" oninput="app.updateField('senderName', this.value)" class="bh-input"></div>
+                                    <div><label for="input-sender-title" class="bh-field-label">Designation / Title</label><input type="text" id="input-sender-title" value="General Manager &amp; HR Director" oninput="app.updateField('senderTitle', this.value)" class="bh-input"></div>
+                                    <div><label for="input-sender-dept" class="bh-field-label">Issuing Department</label><input type="text" id="input-sender-dept" value="Executive Management &amp; Human Resources" oninput="app.updateField('senderDept', this.value)" class="bh-input"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tab-content" class="tab-panel space-y-4 hidden" role="tabpanel" aria-labelledby="tab-btn-content">
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-heading"></i></div>
+                                    <div><h3>Subject</h3><p>Subject line is independent of the Document Type.</p></div>
+                                </div>
+                                <label class="flex items-center gap-2 text-[10px] font-bold text-slate-600 cursor-pointer select-none">
+                                    <input type="checkbox" id="show-subject" checked class="accent-burgundy w-3.5 h-3.5"> Print Subject
+                                </label>
+                            </div>
+                            <div class="bh-card-body">
+                                <input type="text" id="input-subject" oninput="app.updateField('subject', this.value)" placeholder="Enter official document subject" class="bh-input">
+                            </div>
+                        </div>
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+                                    <div><h3>Document Content</h3><p>Write and format the official document content.</p></div>
+                                </div>
+                                <button type="button" onclick="app.addSection()" class="bh-secondary-button"><i class="fa-solid fa-plus mr-1"></i>Add Section</button>
+                            </div>
+                            <div class="bh-card-body">
+                                <div id="sections-editor-list" class="space-y-2 mb-3"></div>
+                                <div class="bh-editor-toolbar">
+                                    <button type="button" onclick="app.execCmd('bold')" title="Bold" class="bh-editor-tool"><i class="fa-solid fa-bold"></i></button>
+                                    <button type="button" onclick="app.execCmd('italic')" title="Italic" class="bh-editor-tool"><i class="fa-solid fa-italic"></i></button>
+                                    <button type="button" onclick="app.execCmd('underline')" title="Underline" class="bh-editor-tool"><i class="fa-solid fa-underline"></i></button>
+                                    <span class="bh-toolbar-divider"></span>
+                                    <button type="button" onclick="app.execCmd('justifyLeft')" title="Align Left" class="bh-editor-tool"><i class="fa-solid fa-align-left"></i></button>
+                                    <button type="button" onclick="app.execCmd('justifyCenter')" title="Align Center" class="bh-editor-tool"><i class="fa-solid fa-align-center"></i></button>
+                                    <button type="button" onclick="app.execCmd('justifyRight')" title="Align Right" class="bh-editor-tool"><i class="fa-solid fa-align-right"></i></button>
+                                    <button type="button" onclick="app.execCmd('justifyFull')" title="Justify" class="bh-editor-tool"><i class="fa-solid fa-align-justify"></i></button>
+                                    <span class="bh-toolbar-divider"></span>
+                                    <button type="button" onclick="app.execCmd('insertOrderedList')" title="Numbered List" class="bh-editor-tool"><i class="fa-solid fa-list-ol"></i></button>
+                                    <button type="button" onclick="app.execCmd('insertUnorderedList')" title="Bullet List" class="bh-editor-tool"><i class="fa-solid fa-list-ul"></i></button>
+                                </div>
+                                <div id="content-editor-main" contenteditable="true" spellcheck="false" oninput="app.renderPreview()" class="bh-content-editor"></div>
+                                <div class="flex items-center justify-between mt-2"><span class="text-[10px] text-slate-400">Changes are reflected in the document preview.</span><span id="bh-content-status" class="text-[10px] text-slate-400">Ready</span></div>
+                            </div>
+                        </div>
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-building"></i></div>
+                                    <div><h3>Company Logo</h3><p>The letterhead stays as it is. Optionally add a faded logo watermark behind the text.</p></div>
+                                </div>
+                                <select id="logo-mode" class="bh-input bh-sig-mode" aria-label="Watermark">
+                                    <option value="watermark">Watermark</option>
+                                    <option value="none">No Watermark</option>
+                                </select>
+                            </div>
+                            <div class="bh-card-body">
+                                <div class="flex items-start gap-3"><div class="bh-upload-icon"><i class="fa-solid fa-image"></i></div><div><h3 class="text-sm font-bold">Upload Company Logo</h3><p class="text-[11px] text-slate-500">PNG, JPG or WEBP image recommended.</p></div></div>
+                                <div class="mt-4 flex items-center gap-2">
+                                    <input id="logo-file" type="file" accept="image/*" onchange="app.uploadLogo(event)" class="bh-file-input flex-1">
+                                    <button type="button" id="logo-remove" class="bh-secondary-button hidden" title="Remove uploaded logo"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
+                                </div><p class="bh-help-text">Transparent PNG gives the cleanest letterhead.</p>
+                            </div>
+                        </div>
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-signature"></i></div>
+                                    <div><h3>Signature Sections</h3><p>Upload a signature image or type the name to print.</p></div>
+                                </div>
+                            </div>
+                            <div class="bh-card-body space-y-3">
+                                <div class="bh-sig-config" data-sig="hr">
+                                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                                        <label class="flex items-center gap-2 text-[11px] font-bold text-slate-700 cursor-pointer select-none">
+                                            <input type="checkbox" id="show-hr-signature" checked class="accent-burgundy w-3.5 h-3.5"> HR Signature
+                                        </label>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <select id="hr-sig-mode" class="bh-input bh-sig-mode">
+                                                <option value="upload">Upload image</option>
+                                                <option value="name">Type name</option>
+                                            </select>
+                                            <button type="button" id="hr-sig-remove" class="bh-secondary-button hidden" title="Remove HR signature"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
+                                        </div>
+                                    </div>
+                                    <div id="hr-sig-upload-wrap" class="mt-3">
+                                        <input id="hr-sig-upload" type="file" accept="image/*" class="bh-file-input">
+                                        <p class="bh-help-text">Transparent PNG works best. Maximum height 50px.</p>
+                                    </div>
+                                    <div id="hr-sig-name-wrap" class="mt-3 hidden">
+                                        <label for="hr-sig-name" class="bh-field-label">Enter name to print <span class="text-red-500">*</span></label>
+                                        <input type="text" id="hr-sig-name" placeholder="e.g. S. Chianello" autocomplete="off" class="bh-input mt-2">
+                                        <p class="bh-help-text">Printed in a script style on the signature line.</p>
+                                        <div id="hr-sig-live-preview" class="bh-sig-live"></div>
+                                    </div>
+                                </div>
+                                <div class="bh-sig-config" data-sig="emp">
+                                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                                        <label class="flex items-center gap-2 text-[11px] font-bold text-slate-700 cursor-pointer select-none">
+                                            <input type="checkbox" id="show-employee-signature" checked class="accent-burgundy w-3.5 h-3.5"> Employee Signature
+                                        </label>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <select id="emp-sig-mode" class="bh-input bh-sig-mode">
+                                                <option value="upload">Upload image</option>
+                                                <option value="name">Type name</option>
+                                            </select>
+                                            <button type="button" id="emp-sig-remove" class="bh-secondary-button hidden" title="Remove employee signature"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
+                                        </div>
+                                    </div>
+                                    <div id="emp-sig-upload-wrap" class="mt-3">
+                                        <input id="emp-sig-upload" type="file" accept="image/*" class="bh-file-input">
+                                        <p class="bh-help-text">Transparent PNG works best. Maximum height 50px.</p>
+                                    </div>
+                                    <div id="emp-sig-name-wrap" class="mt-3 hidden">
+                                        <label for="emp-sig-name" class="bh-field-label">Enter name to print <span class="text-red-500">*</span></label>
+                                        <input type="text" id="emp-sig-name" placeholder="e.g. Employee full name" autocomplete="off" class="bh-input mt-2">
+                                        <p class="bh-help-text">Printed in a script style on the signature line.</p>
+                                        <div id="emp-sig-live-preview" class="bh-sig-live"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tab-drafts" class="tab-panel space-y-4 hidden" role="tabpanel" aria-labelledby="tab-btn-drafts">
+                        <div class="bh-editor-card">
+                            <div class="bh-card-header">
+                                <div class="bh-card-heading">
+                                    <div class="bh-section-icon"><i class="fa-solid fa-folder-open"></i></div>
+                                    <div><h3>Draft Management</h3><p>Save your current document and continue editing later.</p></div>
+                                </div>
+                            </div>
+                            <div class="bh-card-body">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button type="button" onclick="app.saveDraftManually()" class="bh-draft-button"><span class="bh-draft-button-icon"><i class="fa-solid fa-floppy-disk"></i></span><span><strong>Save Draft</strong><small>Save current document</small></span></button>
+                                    <button type="button" onclick="app.emailHistoryComingSoon()" class="bh-draft-button dark"><span class="bh-draft-button-icon"><i class="fa-solid fa-envelope-circle-check"></i></span><span><strong>Email History</strong><small>All sent emails &amp; documents</small></span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bh-print-coming-card">
+                            <div class="bh-print-bg-glow"></div>
+                            <div class="bh-print-coming-content">
+                                <div class="bh-print-coming-eyebrow">
+                                    <span class="bh-print-status-dot"></span>
+                                    Connect Printer To Print
+                                </div>
+                                <div class="bh-print-coming-title-row">
+                                    <div class="bh-print-mini-icon"><i class="fa-solid fa-print"></i></div>
+                                    <div>
+                                        <h3>Print Document</h3>
+                                    </div>
+                                </div>
+                                <div class="bh-print-actions">
+                                    <button type="button" class="bh-print-button" onclick="app.printLocalFilePicker()" aria-label="Select a file from this device"><i class="fa-solid fa-folder-open"></i> Select File</button>
+                                    <button type="button" id="btn-print-selected" class="bh-print-button primary" onclick="app.printSelectedFileNow()" aria-label="Print selected file or current document"><i class="fa-solid fa-print"></i> Print</button>
+                                </div>
+                                <p id="print-file-name" class="bh-print-filename" hidden></p>
+                            </div>
+                            <div class="bh-printer-animation-area" aria-hidden="true">
+                                <div class="bh-printer-status"><span></span> Printer Ready</div>
+                                <div class="bh-printer-stack">
+                                    <div class="bh-printer-machine-wrap">
+                                        <div class="bh-printer-machine">
+                                            <div class="bh-printer-paper">
+                                                <div class="bh-paper-line"></div>
+                                                <div class="bh-paper-line short"></div>
+                                                <div class="bh-paper-line"></div>
+                                                <div class="bh-paper-line medium"></div>
+                                            </div>
+                                            <div class="bh-printer-top"></div>
+                                            <div class="bh-printer-body">
+                                                <div class="bh-printer-display"><span class="bh-printer-display-light"></span><span>READY</span></div>
+                                                <div class="bh-printer-slot"></div>
+                                                <div class="bh-printer-controls"><span></span><span></span><span></span></div>
+                                            </div>
+                                            <div class="bh-printer-bottom"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bh-printer-shadow"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- FOOTER -->
+    <footer class="bh-footer">
+        <div class="bh-footer-info">
+            <span class="bh-footer-company">Behavior Hotel Ltd.</span>
+            <span class="bh-footer-sep">|</span>
+            <span>Apartment 2, Block B, The Q6 Residence, Triq il-Majjiera, St. Paul's Bay, Malta MT</span>
+            <span class="bh-footer-sep">|</span>
+            <span>Phone: <a href="tel:+35677189004">+356-77189004</a></span>
+            <span class="bh-footer-sep">|</span>
+            <span>Email: <a href="mailto:t.chiaracane@behaviorhotel.eu">t.chiaracane@behaviorhotel.eu</a></span>
+        </div>
+        <span class="bh-footer-version">Version 0.1</span>
+    </footer>
+    <div id="preview-panel" class="bh-print-source" aria-hidden="true">
+            <div id="preview-scroll-wrap">
+                <div id="a4-print-container" class="a4-page">
+                    <img id="prev-logo-watermark" class="bh-watermark" src="Logo.png" alt="" aria-hidden="true">
+                    <div style="border-bottom:2px solid #8B1E2D; padding-bottom:12px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+                        <img id="prev-logo" src="Logo.png" style="max-height:100px; align-self:center;">
+                        <div style="text-align:right; font-size:9px; line-height:1.3;">
+                            <div style="font-weight:700; font-size:11px;">BEHAVIOR HOTEL</div>
+                            <div>Apartment 2, Block B, The Q6 Residence, Triq il-Majjiera</div>
+                            <div>St. Paul's Bay, Malta | Reg: MT 24442604</div>
+                            <div>Tel: +356 77189004 | Email: s.chianello@behaviorhotel.eu</div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:10px; font-size:10px; margin-bottom:12px;">
+                        <div id="prev-conf" style="color:#8B1E2D; font-weight:700;"></div>
+                        <div id="prev-doc-type" style="font-weight:700; text-decoration:underline; text-align:center;"></div>
+                        <div style="text-align:right;">
+                            <div id="prev-date"></div>
+                            <div id="prev-ref"></div>
+                        </div>
+                    </div>
+                    <div style="font-size:10px; margin-bottom:12px;">
+                        <div id="prev-rec-name" style="font-weight:700; font-size:11px;"></div>
+                        <div id="prev-rec-pos"></div>
+                        <div id="prev-rec-addr"></div>
+                    </div>
+                    <div id="prev-subject-line" style="font-weight:700; font-size:10px; margin-bottom:12px;">Subject: <span id="prev-subject"></span></div>
+                    <div id="prev-sections" style="font-size:10px; line-height:1.6; text-align:justify;"></div>
+                    <div class="a4-footer">
+                        <div id="prev-hr-signature-block" style="width:40%;">
+                            <div id="prev-hr-sig" style="height:50px;"></div>
+                            <div style="border-top:1px solid #000; font-size:10px;">Human Resource</div>
+                        </div>
+                        <div id="prev-employee-signature-block" style="width:40%; margin-left:auto;">
+                            <div style="font-size:10px; font-weight:700;">Employee Acknowledgment</div>
+                            <div id="prev-emp-sig" style="height:50px; border-bottom:1px dashed #ccc;"></div>
+                            <div style="font-size:9px;">Signature &amp; Date</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <div id="email-coming-overlay" class="bh-email-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Send Email — coming soon">
+        <div class="bh-editor-card bh-email-coming-card">
+            <button type="button" class="bh-email-close" aria-label="Close" onclick="app.closeEmailComing()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="bh-email-glow"></div>
+            <div class="bh-email-icon" id="email-coming-icon">
+                <i class="fa-solid fa-envelope"></i>
+            </div>
+            <div class="bh-email-content">
+                <div class="bh-email-title-row">
+                    <h3 id="email-coming-title">Send Email</h3>
+                    <span class="bh-coming-badge">
+                        <i class="fa-solid fa-clock"></i>
+                        Coming Soon
+                    </span>
+                </div>
+                <p id="email-coming-message">Email this document directly from your dashboard. This feature is currently under development.</p>
+            </div>
+        </div>
+    </div>
+    <div id="ui-modal" class="bh-ui-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="ui-modal-title">
+        <div class="bh-ui-card" data-variant="info">
+            <div class="bh-ui-icon"><i class="fa-solid fa-circle-info"></i></div>
+            <h3 id="ui-modal-title" class="bh-ui-title">Notice</h3>
+            <p id="ui-modal-message" class="bh-ui-message"></p>
+            <div class="bh-ui-actions">
+                <button type="button" id="ui-modal-cancel" class="bh-secondary-button">Cancel</button>
+                <button type="button" id="ui-modal-ok" class="bh-primary-button">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="draft-modal" class="bh-draft-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="draft-modal-title">
+        <div class="bh-draft-card">
+            <div class="bh-card-header">
+                <div class="bh-card-heading">
+                    <div class="bh-section-icon"><i class="fa-solid fa-folder-open"></i></div>
+                    <div><h3 id="draft-modal-title">Saved Drafts</h3><p>Select a saved document to continue editing.</p></div>
+                </div>
+                <button type="button" id="btn-close-draft-modal" class="bh-icon-button" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="bh-card-body">
+                <p id="draft-modal-notice" class="bh-draft-notice" hidden></p>
+                <div id="draft-list" class="bh-draft-list"></div>
+                <div id="no-drafts" class="bh-draft-empty" hidden>
+                    <i class="fa-regular fa-folder-open"></i>
+                    <strong>No saved drafts</strong>
+                    <span>Save a document to see it here.</span>
+                </div>
+            </div>
+            <div class="bh-draft-card-footer">
+                <button type="button" id="btn-cancel-load" class="bh-secondary-button">Close</button>
+            </div>
+        </div>
+    </div>
+    <div id="print-file-modal" class="bh-draft-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="print-file-title">
+        <div class="bh-draft-card">
+            <div class="bh-card-header">
+                <div class="bh-card-heading">
+                    <div class="bh-section-icon"><i class="fa-solid fa-print"></i></div>
+                    <div><h3 id="print-file-title">Print a Saved File</h3><p>Select a file from your local storage to print.</p></div>
+                </div>
+                <button type="button" id="btn-close-print-file" class="bh-icon-button" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="bh-card-body">
+                <p id="print-file-notice" class="bh-draft-notice" hidden></p>
+                <div id="print-file-list" class="bh-draft-list"></div>
+                <div id="no-print-files" class="bh-draft-empty" hidden>
+                    <i class="fa-regular fa-folder-open"></i>
+                    <strong>No saved files</strong>
+                    <span>Saved drafts and exported PDFs will appear here.</span>
+                </div>
+            </div>
+            <div class="bh-draft-card-footer">
+                <button type="button" id="btn-cancel-print-file" class="bh-secondary-button">Close</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        (function(){
+            const tabs=['type','parties','content','drafts'];
+            function button(n){return document.getElementById('tab-btn-'+n)}
+            function panel(n){return document.getElementById('tab-'+n)}
+            window.switchInputTab=function(name){
+                if(!tabs.includes(name))return;
+                tabs.forEach(n=>{
+                    const p=panel(n),b=button(n);
+                    if(p){p.classList.add('hidden');p.setAttribute('hidden','');}
+                    if(b){b.classList.remove('active');b.setAttribute('aria-selected','false');b.tabIndex=-1;}
+                });
+                const p=panel(name),b=button(name);
+                if(p){p.classList.remove('hidden');p.removeAttribute('hidden');}
+                if(b){b.classList.add('active');b.setAttribute('aria-selected','true');b.tabIndex=0;}
+            };
+            window.switchInputTab('type');
+            window.addEventListener('load', function() {
+                if (window.app && typeof window.app.resetZoom === 'function') {
+                    setTimeout(function(){ window.app.resetZoom(); }, 120);
+                }
+            });
+        })();
+    </script>
+    <script>
+        (function(){
+            function closeMenus(){
+                document.querySelectorAll('.bh-header-menu').forEach(function(m){ m.classList.remove('open'); });
+                document.querySelectorAll('[aria-haspopup="true"]').forEach(function(b){ b.setAttribute('aria-expanded','false'); });
+            }
+            function setup(btnId, menuId){
+                var btn=document.getElementById(btnId), menu=document.getElementById(menuId);
+                if(!btn||!menu) return;
+                btn.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    var willOpen=!menu.classList.contains('open');
+                    closeMenus();
+                    if(willOpen){ menu.classList.add('open'); btn.setAttribute('aria-expanded','true'); }
+                });
+            }
+            setup('mobile-menu-btn','mobile-actions-menu');
+            setup('desktop-profile-btn','desktop-profile-menu');
+            document.addEventListener('click', closeMenus);
+            document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeMenus(); });
+        })();
+    </script>
+</body>
+</html>

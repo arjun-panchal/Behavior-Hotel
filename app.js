@@ -295,16 +295,16 @@ class BehaviorLetterApp {
     const repTitle = this.elements["designation"] || this.elements["input-sender-title"];
     
     if (this.elements["prev-date"]) this.elements["prev-date"].textContent = dateEl?.value || "";
-    if (this.elements["prev-ref"]) this.elements["prev-ref"].textContent = refEl?.value ? `Ref: ${refEl.value}` : "";
+    if (this.elements["prev-ref"]) this.elements["prev-ref"].textContent = refEl?.value ? `Ref: ${refEl.value}` : (refEl?.value || "");
     if (this.elements["prev-confidential-wrap"]) {
-      const isConf = confEl?.checked || (confEl?.type === "select-one" && confEl.value !== "General");
+      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
       this.elements["prev-confidential-wrap"].hidden = !isConf;
-      this.elements["prev-confidential-wrap"].style.display = isConf ? "block" : "none";
+      this.elements["prev-confidential-wrap"].style.display = isConf ? "" : "none";
       if (confEl?.type === "select-one") this.elements["prev-confidential-wrap"].textContent = confEl.value;
     }
     if (this.elements["prev-conf"]) {
-      const isConf = confEl?.checked || (confEl?.type === "select-one" && confEl.value !== "General");
-      this.elements["prev-conf"].style.display = isConf ? "block" : "none";
+      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
+      this.elements["prev-conf"].style.display = isConf ? "" : "none";
       if (confEl?.type === "select-one") this.elements["prev-conf"].textContent = confEl.value;
     }
     if (this.elements["prev-recipient-name"]) this.elements["prev-recipient-name"].textContent = recName?.value || "";
@@ -313,19 +313,18 @@ class BehaviorLetterApp {
     if (this.elements["prev-rec-addr"]) this.elements["prev-rec-addr"].textContent = recAddr?.value || "";
     if (this.elements["prev-employee-id"]) this.elements["prev-employee-id"].textContent = recId?.value ? "Employee ID: " + recId.value : "";
     if (this.elements["prev-rec-id"]) this.elements["prev-rec-id"].textContent = recId?.value ? "Employee ID: " + recId.value : "";
-    if (this.elements["prev-position"]) this.elements["prev-position"].textContent = recPos?.value || "";
+    if (this.elements["prev-position"]) this.elements["prev-position"].textContent = recPos?.value ? "Position: " + recPos.value : (recPos?.value || "");
     if (this.elements["prev-rec-pos"]) this.elements["prev-rec-pos"].textContent = recPos?.value || "";
     if (this.elements["prev-subject"]) this.elements["prev-subject"].textContent = subj?.value || docTypeEl?.value || "";
     if (this.elements["prev-doc-type"]) this.elements["prev-doc-type"].textContent = docTypeEl?.value || "";
-    const contentHtml = editorEl?.innerHTML || "";
-    if (this.elements["prev-content"]) this.elements["prev-content"].innerHTML = contentHtml;
-    if (this.elements["prev-sections"]) this.elements["prev-sections"].innerHTML = contentHtml;
+    if (this.elements["prev-content"]) this.elements["prev-content"].innerHTML = editorEl?.innerHTML || "";
+    if (this.elements["prev-sections"]) this.elements["prev-sections"].innerHTML = editorEl?.innerHTML || "";
     if (this.elements["prev-hr-name"]) this.elements["prev-hr-name"].textContent = repName?.value || "";
     if (this.elements["prev-hr-title"]) this.elements["prev-hr-title"].textContent = repTitle?.value || "";
     if (this.elements["prev-emp-name"]) this.elements["prev-emp-name"].textContent = recName?.value || "";
     if (this.elements["prev-emp2-name"]) this.elements["prev-emp2-name"].textContent = recName?.value || "Witness";
     if (this.elements["footer-confidential"]) {
-      const isConf = confEl?.checked || (confEl?.type === "select-one" && confEl.value !== "General");
+      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
       this.elements["footer-confidential"].style.display = isConf ? "block" : "none";
     }
     if (this.elements["page-number"]) {
@@ -591,7 +590,7 @@ class BehaviorLetterApp {
       } else {
         alert("Failed to save draft to backend.");
       }
-    } catch (e) {
+    } catch {
       alert("Error saving draft.");
     }
   }
@@ -690,20 +689,34 @@ class BehaviorLetterApp {
     }
   }
 
-  // Zoom
-  zoomIn() { this.state.zoom = Math.min(2, this.state.zoom + 0.1); this.applyZoom(); }
-  zoomOut() { this.state.zoom = Math.max(0.5, this.state.zoom - 0.1); this.applyZoom(); }
-  fitToPage() {
-    const c = this.elements["preview-container"], p = this.elements["a4-page"];
-    if (!c || !p) return;
-    const cw = c.clientWidth - 40, pw = p.scrollWidth;
-    this.state.zoom = Math.max(0.3, Math.min(2, cw / pw));
-    this.applyZoom();
+  // Zoom helpers — called by HTML buttons
+  zoomPreview(delta) {
+    this.state.zoom = Math.max(0.3, Math.min(3, (this.state.zoom || 1) + delta));
+    this._applyZoom();
   }
-  applyZoom() {
-    const p = this.elements["a4-page"];
-    if (p) { p.style.transform = `scale(${this.state.zoom})`; p.style.transformOrigin = "top center"; }
-    if (this.elements["zoom-level"]) this.elements["zoom-level"].textContent = Math.round(this.state.zoom * 100) + "%";
+  resetZoom() {
+    const wrap = document.getElementById('preview-scroll-wrap');
+    const page = document.getElementById('a4-print-container');
+    if (wrap && page) {
+      const wrapW = wrap.clientWidth - 40;
+      const pageW = page.offsetWidth / (this.state.zoom || 1); // natural width before scale
+      this.state.zoom = Math.max(0.3, Math.min(2, wrapW / pageW));
+    } else {
+      this.state.zoom = 1;
+    }
+    this._applyZoom();
+  }
+  _applyZoom() {
+    const page = document.getElementById('a4-print-container');
+    const label = document.getElementById('zoom-level-label');
+    if (page) {
+      page.style.transform = `scale(${this.state.zoom})`;
+      page.style.transformOrigin = 'top center';
+      // Adjust wrapper height so scroll area reflects scaled size
+      const naturalH = page.offsetHeight / this.state.zoom;
+      page.parentElement && (page.parentElement.style.minHeight = Math.ceil(naturalH * this.state.zoom) + 'px');
+    }
+    if (label) label.textContent = Math.round(this.state.zoom * 100) + '%';
   }
 }
 
