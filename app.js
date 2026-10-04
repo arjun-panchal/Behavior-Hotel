@@ -55,12 +55,12 @@ class BehaviorLetterApp {
 
   cacheElements() {
     const ids = [
-      "document-type", "date", "ref-number", "btn-gen-ref", "confidential",
-      "recipient-name", "recipient-address", "employee-id", "position",
-      "department", "rep-name", "designation", "subject",
-      "content-editor", "word-count", "char-count", "page-count",
-      "btn-upload-logo", "logo-upload", "btn-remove-logo", "btn-reset-logo", "logo-img", "default-logo",
-      "hr-sig-upload", "btn-hr-upload", "btn-hr-draw", "btn-hr-clear", "hr-sig-preview", "prev-hr-sig",
+      "document-type", "doc-type", "date", "input-date", "ref-number", "input-ref", "btn-gen-ref", "confidential", "input-conf",
+      "recipient-name", "input-recipient-name", "recipient-address", "input-recipient-address", "employee-id", "input-recipient-id", "position", "input-recipient-position",
+      "department", "input-recipient-dept", "rep-name", "input-sender-name", "designation", "input-sender-title", "subject", "input-subject",
+      "content-editor", "content-editor-main", "word-count", "char-count", "page-count",
+      "btn-upload-logo", "logo-upload", "logo-file", "btn-remove-logo", "btn-reset-logo", "logo-img", "prev-logo", "default-logo",
+      "hr-sig-upload", "sig-file", "btn-hr-upload", "btn-hr-draw", "btn-hr-clear", "hr-sig-preview", "prev-hr-sig",
       "emp-sig-upload", "btn-emp-upload", "btn-emp-draw", "btn-emp-clear", "emp-sig-preview", "prev-emp-sig",
       "emp2-sig-upload", "btn-emp2-upload", "btn-emp2-draw", "btn-emp2-clear", "emp2-sig-preview", "prev-emp2-sig", "emp2-sig-block",
       "show-confidential", "show-page-number",
@@ -72,12 +72,40 @@ class BehaviorLetterApp {
       "draft-modal", "btn-close-draft-modal", "btn-cancel-load", "draft-list", "no-drafts",
       "doc-status",
       "error-doc-type", "error-date", "error-recipient", "error-subject", "error-content",
-      "prev-date", "prev-ref", "prev-confidential-wrap", "prev-recipient-name", "prev-recipient-address", "prev-employee-id", "prev-position", "prev-subject", "prev-content", "prev-hr-name", "prev-hr-title", "prev-emp-name", "prev-emp2-name", "footer-confidential", "page-number", "page-num", "a4-page", "preview-container", "logo-container"
+      "prev-date", "prev-ref", "prev-confidential-wrap", "prev-conf", "prev-recipient-name", "prev-rec-name", "prev-recipient-address", "prev-rec-addr", "prev-employee-id", "prev-rec-id", "prev-position", "prev-rec-pos", "prev-subject", "prev-content", "prev-sections", "prev-hr-name", "prev-hr-title", "prev-emp-name", "prev-emp2-name", "footer-confidential", "page-number", "page-num", "a4-page", "a4-print-container", "preview-container", "logo-container"
     ];
-    ids.forEach(id => (this.elements[id] = document.getElementById(id)));
+    ids.forEach(id => {
+      if (document.getElementById(id)) {
+        this.elements[id] = document.getElementById(id);
+      }
+    });
     this.elements.richToolbar = document.getElementById("rich-toolbar");
     this.canvas = this.elements["signature-canvas"];
     this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
+    
+    // Normalize element names for common ones
+    if (!this.elements["document-type"] && this.elements["doc-type"]) this.elements["document-type"] = this.elements["doc-type"];
+    if (!this.elements["date"] && this.elements["input-date"]) this.elements["date"] = this.elements["input-date"];
+    if (!this.elements["ref-number"] && this.elements["input-ref"]) this.elements["ref-number"] = this.elements["input-ref"];
+    if (!this.elements["recipient-name"] && this.elements["input-recipient-name"]) this.elements["recipient-name"] = this.elements["input-recipient-name"];
+    if (!this.elements["recipient-address"] && this.elements["input-recipient-address"]) this.elements["recipient-address"] = this.elements["input-recipient-address"];
+    if (!this.elements["employee-id"] && this.elements["input-recipient-id"]) this.elements["employee-id"] = this.elements["input-recipient-id"];
+    if (!this.elements["position"] && this.elements["input-recipient-position"]) this.elements["position"] = this.elements["input-recipient-position"];
+    if (!this.elements["department"] && this.elements["input-recipient-dept"]) this.elements["department"] = this.elements["input-recipient-dept"];
+    if (!this.elements["rep-name"] && this.elements["input-sender-name"]) this.elements["rep-name"] = this.elements["input-sender-name"];
+    if (!this.elements["designation"] && this.elements["input-sender-title"]) this.elements["designation"] = this.elements["input-sender-title"];
+    if (!this.elements["subject"] && this.elements["input-subject"]) this.elements["subject"] = this.elements["input-subject"];
+    if (!this.elements["content-editor"] && this.elements["content-editor-main"]) this.elements["content-editor"] = this.elements["content-editor-main"];
+    if (!this.elements["logo-upload"] && (this.elements["logo-file"] || this.elements["logo-upload"])) this.elements["logo-upload"] = this.elements["logo-file"] || this.elements["logo-upload"];
+    if (!this.elements["hr-sig-upload"] && this.elements["sig-file"]) this.elements["hr-sig-upload"] = this.elements["sig-file"];
+    if (!this.elements["prev-hr-sig"] && this.elements["prev-hr-sig"]) { /* ok */ }
+    if (!this.elements["prev-confidential-wrap"] && this.elements["prev-conf"]) this.elements["prev-confidential-wrap"] = this.elements["prev-conf"];
+    if (!this.elements["prev-recipient-name"] && this.elements["prev-rec-name"]) this.elements["prev-recipient-name"] = this.elements["prev-rec-name"];
+    if (!this.elements["prev-recipient-address"] && this.elements["prev-rec-addr"]) this.elements["prev-recipient-address"] = this.elements["prev-rec-addr"];
+    if (!this.elements["prev-employee-id"] && this.elements["prev-rec-id"]) this.elements["prev-employee-id"] = this.elements["prev-rec-id"];
+    if (!this.elements["prev-position"] && this.elements["prev-rec-pos"]) this.elements["prev-position"] = this.elements["prev-rec-pos"];
+    if (!this.elements["prev-content"] && this.elements["prev-sections"]) this.elements["prev-content"] = this.elements["prev-sections"];
+    if (!this.elements["a4-page"] && this.elements["a4-print-container"]) this.elements["a4-page"] = this.elements["a4-print-container"];
   }
 
   setupEventListeners() {
@@ -253,21 +281,56 @@ class BehaviorLetterApp {
   }
 
   updatePreview() {
-    if (this.elements["prev-date"]) this.elements["prev-date"].textContent = this.elements["date"]?.value || "";
-    if (this.elements["prev-ref"]) this.elements["prev-ref"].textContent = this.elements["ref-number"]?.value || "";
-    if (this.elements["prev-confidential-wrap"]) this.elements["prev-confidential-wrap"].hidden = !this.elements["confidential"]?.checked;
-    if (this.elements["prev-recipient-name"]) this.elements["prev-recipient-name"].textContent = this.elements["recipient-name"]?.value || "";
-    if (this.elements["prev-recipient-address"]) this.elements["prev-recipient-address"].textContent = this.elements["recipient-address"]?.value || "";
-    if (this.elements["prev-employee-id"]) this.elements["prev-employee-id"].textContent = this.elements["employee-id"]?.value ? "Employee ID: " + this.elements["employee-id"].value : "";
-    if (this.elements["prev-position"]) this.elements["prev-position"].textContent = this.elements["position"]?.value ? "Position: " + this.elements["position"].value : "";
-    if (this.elements["prev-subject"]) this.elements["prev-subject"].textContent = this.elements["subject"]?.value || "";
-    if (this.elements["prev-content"]) this.elements["prev-content"].innerHTML = this.elements["content-editor"]?.innerHTML || "";
-    if (this.elements["prev-hr-name"]) this.elements["prev-hr-name"].textContent = this.elements["rep-name"]?.value || "";
-    if (this.elements["prev-hr-title"]) this.elements["prev-hr-title"].textContent = this.elements["designation"]?.value || "";
-    if (this.elements["prev-emp-name"]) this.elements["prev-emp-name"].textContent = this.elements["recipient-name"]?.value || "";
-    if (this.elements["prev-emp2-name"]) this.elements["prev-emp2-name"].textContent = this.elements["recipient-name"]?.value || "Witness";
-    if (this.elements["footer-confidential"]) this.elements["footer-confidential"].style.display = (this.elements["show-confidential"]?.checked) ? "block" : "none";
-    if (this.elements["page-number"]) this.elements["page-number"].hidden = !(this.elements["show-page-number"]?.checked);
+    const confEl = this.elements["confidential"] || this.elements["input-conf"];
+    const dateEl = this.elements["date"] || this.elements["input-date"];
+    const refEl = this.elements["ref-number"] || this.elements["input-ref"];
+    const recName = this.elements["recipient-name"] || this.elements["input-recipient-name"];
+    const recAddr = this.elements["recipient-address"] || this.elements["input-recipient-address"];
+    const recId = this.elements["employee-id"] || this.elements["input-recipient-id"];
+    const recPos = this.elements["position"] || this.elements["input-recipient-position"];
+    const subj = this.elements["subject"] || this.elements["input-subject"];
+    const docTypeEl = this.elements["document-type"] || this.elements["doc-type"];
+    const editorEl = this.elements["content-editor"] || this.elements["content-editor-main"];
+    const repName = this.elements["rep-name"] || this.elements["input-sender-name"];
+    const repTitle = this.elements["designation"] || this.elements["input-sender-title"];
+    
+    if (this.elements["prev-date"]) this.elements["prev-date"].textContent = dateEl?.value || "";
+    if (this.elements["prev-ref"]) this.elements["prev-ref"].textContent = refEl?.value ? `Ref: ${refEl.value}` : (refEl?.value || "");
+    if (this.elements["prev-confidential-wrap"]) {
+      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
+      this.elements["prev-confidential-wrap"].hidden = !isConf;
+      this.elements["prev-confidential-wrap"].style.display = isConf ? "" : "none";
+      if (confEl?.type === "select-one") this.elements["prev-confidential-wrap"].textContent = confEl.value;
+    }
+    if (this.elements["prev-conf"]) {
+      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
+      this.elements["prev-conf"].style.display = isConf ? "" : "none";
+      if (confEl?.type === "select-one") this.elements["prev-conf"].textContent = confEl.value;
+    }
+    if (this.elements["prev-recipient-name"]) this.elements["prev-recipient-name"].textContent = recName?.value || "";
+    if (this.elements["prev-rec-name"]) this.elements["prev-rec-name"].textContent = recName?.value || "";
+    if (this.elements["prev-recipient-address"]) this.elements["prev-recipient-address"].textContent = recAddr?.value || "";
+    if (this.elements["prev-rec-addr"]) this.elements["prev-rec-addr"].textContent = recAddr?.value || "";
+    if (this.elements["prev-employee-id"]) this.elements["prev-employee-id"].textContent = recId?.value ? "Employee ID: " + recId.value : "";
+    if (this.elements["prev-rec-id"]) this.elements["prev-rec-id"].textContent = recId?.value ? "Employee ID: " + recId.value : "";
+    if (this.elements["prev-position"]) this.elements["prev-position"].textContent = recPos?.value ? "Position: " + recPos.value : (recPos?.value || "");
+    if (this.elements["prev-rec-pos"]) this.elements["prev-rec-pos"].textContent = recPos?.value || "";
+    if (this.elements["prev-subject"]) this.elements["prev-subject"].textContent = subj?.value || docTypeEl?.value || "";
+    if (this.elements["prev-doc-type"]) this.elements["prev-doc-type"].textContent = docTypeEl?.value || "";
+    if (this.elements["prev-content"]) this.elements["prev-content"].innerHTML = editorEl?.innerHTML || "";
+    if (this.elements["prev-sections"]) this.elements["prev-sections"].innerHTML = editorEl?.innerHTML || "";
+    if (this.elements["prev-hr-name"]) this.elements["prev-hr-name"].textContent = repName?.value || "";
+    if (this.elements["prev-hr-title"]) this.elements["prev-hr-title"].textContent = repTitle?.value || "";
+    if (this.elements["prev-emp-name"]) this.elements["prev-emp-name"].textContent = recName?.value || "";
+    if (this.elements["prev-emp2-name"]) this.elements["prev-emp2-name"].textContent = recName?.value || "Witness";
+    if (this.elements["footer-confidential"]) {
+      const isConf = confEl?.checked || (confEl?.value && confEl.value !== "General");
+      this.elements["footer-confidential"].style.display = isConf ? "block" : "none";
+    }
+    if (this.elements["page-number"]) {
+      const showPage = this.elements["show-page-number"]?.checked;
+      this.elements["page-number"].hidden = !showPage;
+    }
     this.renderLogoPreview();
     this.renderSigPreviews();
   }
@@ -320,12 +383,14 @@ class BehaviorLetterApp {
   }
 
   renderLogoPreview() {
+    const logoEl = this.elements["logo-img"] || this.elements["prev-logo"];
+    const defaultEl = this.elements["default-logo"];
     if (this.state.logoData && this.state.logoData !== "Logo.png") {
-      if (this.elements["logo-img"]) { this.elements["logo-img"].src = this.state.logoData; this.elements["logo-img"].hidden = false; }
-      if (this.elements["default-logo"]) this.elements["default-logo"].hidden = true;
+      if (logoEl) { logoEl.src = this.state.logoData; logoEl.hidden = false; }
+      if (defaultEl) defaultEl.hidden = true;
     } else {
-      if (this.elements["logo-img"]) { this.elements["logo-img"].src = "Logo.png"; this.elements["logo-img"].hidden = false; }
-      if (this.elements["default-logo"]) this.elements["default-logo"].hidden = true;
+      if (logoEl) { logoEl.src = "Logo.png"; logoEl.hidden = false; }
+      if (defaultEl) defaultEl.hidden = true;
     }
   }
 
@@ -363,9 +428,9 @@ class BehaviorLetterApp {
     ["hr","emp","emp2"].forEach(t => {
       const prev = this.elements[`prev-${t}-sig`], edit = this.elements[`${t}-sig-preview`];
       const data = this.state.signatures[t];
-      const html = data ? `<img src="${data}" alt="Signature">` : "";
-      if (prev) prev.innerHTML = html;
-      if (edit) edit.innerHTML = html;
+      const html = data ? `<img src="${data}" alt="Signature" style="max-width:180px;max-height:55px;">` : "";
+      if (prev) { prev.innerHTML = html; }
+      if (edit) { edit.innerHTML = html; }
     });
     if (this.elements["emp2-sig-block"]) this.elements["emp2-sig-block"].hidden = !this.state.showEmp2;
   }
