@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Behavior Hotel - Official Letter & Document Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        burgundy: {
+                            DEFAULT: '#8B1E2D',
+                            dark: '#6E1622',
+                            light: '#A52A3A'
+                        },
+                        corporate: {
+                            dark: '#111827',
+                            slate: '#f1f5f9'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Arial', 'Helvetica', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+@media print {
+            body * { visibility: hidden; }
+            #a4-print-container, #a4-print-container * { visibility: visible; }
+            #a4-print-container {
+                position: absolute;
+                left: 0; top: 0;
+                width: 210mm !important;
+                min-height: 297mm !important;
+                margin: 0 !important;
+                padding: 15mm 20mm !important;
+                box-shadow: none !important;
+                background: white !important;
+            }
+            .no-print { display: none !important; }
+            @page { size: A4 portrait; margin: 0; }
+        }
+            @page { size: A4 portrait; margin: 0; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm 20mm;
+            background: #ffffff;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            margin: 0 auto;
+            box-sizing: border-box;
+            position: relative;
+            transform-origin: top center;
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="bg-corporate-slate text-corporate-dark font-sans h-full flex flex-col overflow-hidden">
+    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-burgundy flex items-center justify-center text-white font-bold text-xl shadow-md">
+                BH
+            </div>
+            <div>
+                <h1 class="font-bold text-lg text-slate-900 leading-tight">Behavior Hotel <span class="text-xs font-semibold px-2 py-0.5 rounded bg-burgundy/10 text-burgundy ml-1">Official Document System</span></h1>
+                <p class="text-xs text-slate-500">Apartment 2, Block B, The Q6 Residence, St. Paul's Bay, Malta</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button type="button" onclick="app.newDocument()" class="px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center shadow-sm"><i class="fa-solid fa-file-circle-plus mr-1.5"></i> New</button>
+            <button type="button" onclick="app.saveDraftManually()" class="px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center shadow-sm"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Draft</button>
+            <button type="button" onclick="app.printDocument()" class="px-3.5 py-2 text-xs font-medium text-white bg-slate-800 hover:bg-slate-900 rounded-lg flex items-center shadow-sm"><i class="fa-solid fa-print mr-1.5"></i> Print</button>
+            <button type="button" onclick="app.downloadPDF()" class="px-4 py-2 text-xs font-semibold text-white bg-burgundy hover:bg-burgundy-dark rounded-lg flex items-center shadow-md"><i class="fa-solid fa-file-pdf mr-1.5"></i> Export PDF</button>
+            <button type="button" onclick="app.togglePreview()" class="px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center shadow-sm"><i class="fa-solid fa-columns mr-1.5"></i> Toggle Preview</button>
+        </div>
+    </header>
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="w-full flex border-b border-slate-200 bg-slate-50 flex-shrink-0 overflow-x-auto" id="editor-tabs" role="tablist" aria-label="Document editor sections">
+            <button type="button" id="tab-btn-type" onclick="app.switchTab('type')" class="tab-btn flex-1 min-w-[96px] px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors flex items-center justify-center active border-burgundy text-burgundy border-b-2" role="tab" aria-selected="true" aria-controls="tab-type"><i class="fa-solid fa-file-lines mr-1"></i> Type</button>
+            <button type="button" id="tab-btn-parties" onclick="app.switchTab('parties')" class="tab-btn flex-1 min-w-[96px] px-3 py-2 text-xs font-semibold hover:text-slate-900 whitespace-nowrap transition-colors flex items-center justify-center border-transparent text-slate-600 border-b-2" role="tab" aria-selected="false" aria-controls="tab-parties" tabindex="-1"><i class="fa-solid fa-users mr-1"></i> Parties</button>
+            <button type="button" id="tab-btn-content" onclick="app.switchTab('content')" class="tab-btn flex-1 min-w-[96px] px-3 py-2 text-xs font-semibold hover:text-slate-900 whitespace-nowrap transition-colors flex items-center justify-center border-transparent text-slate-600 border-b-2" role="tab" aria-selected="false" aria-controls="tab-content" tabindex="-1"><i class="fa-solid fa-pen-nib mr-1"></i> Content</button>
+            <button type="button" id="tab-btn-signatures" onclick="app.switchTab('signatures')" class="tab-btn flex-1 min-w-[110px] px-3 py-2 text-xs font-semibold hover:text-slate-900 whitespace-nowrap transition-colors flex items-center justify-center border-transparent text-slate-600 border-b-2" role="tab" aria-selected="false" aria-controls="tab-signatures" tabindex="-1"><i class="fa-solid fa-signature mr-1"></i> Signatures</button>
+            <button type="button" id="tab-btn-drafts" onclick="app.switchTab('drafts')" class="tab-btn flex-1 min-w-[96px] px-3 py-2 text-xs font-semibold border-transparent text-slate-600 hover:text-slate-900 whitespace-nowrap transition-colors flex items-center justify-center border-b-2" role="tab" aria-selected="false" aria-controls="tab-drafts" tabindex="-1"><i class="fa-solid fa-box-archive mr-1"></i> Drafts</button>
+        </div>
+        <div id="editor-panel" class="w-full border-b border-slate-200 bg-white overflow-y-auto p-4 flex-1">
+            <div class="space-y-4">
+                <div id="tab-type" class="tab-panel space-y-4" role="tabpanel" aria-labelledby="tab-btn-type">
+                <div>
+                    <label class="text-xs font-semibold">Document Type *</label>
+                    <div class="flex gap-1 mt-1">
+                        <select id="doc-type" onchange="app.handleDocTypeChange(this)" class="w-full border rounded px-2 py-1 text-sm">
+                            <option>Termination Notice</option>
+                            <option>Warning Letter</option>
+                            <option>Employment Confirmation</option>
+                            <option>Disciplinary Notice</option>
+                            <option>Salary Letter</option>
+                            <option>Experience Letter</option>
+                            <option>General Official Letter</option>
+                            <option>Prohibited or Restricted</option>
+                            <option value="__custom__">Custom</option>
+                        </select>
+                        <button type="button" id="del-custom" onclick="app.deleteDocType()" title="Delete custom type" class="border rounded px-2 text-red-600 text-xs hidden"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div id="custom-doc-type-controls" class="mt-2" style="display:none">
+                        <label for="custom-doc-type-input" class="text-xs">Enter custom document type</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="text" id="custom-doc-type-input" placeholder="Enter a new document type" class="flex-1 border rounded px-2 py-1 text-sm">
+                            <button type="button" onclick="app.addDocType()" class="border rounded px-3 py-1 text-xs font-medium text-white bg-burgundy">Add</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs">Date</label>
+                        <input type="date" id="input-date" onchange="app.updateField('date', this.value)" class="w-full border rounded px-2 py-1 text-sm mt-1">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Reference Number</label>
+                        <div class="flex">
+                            <input type="text" id="input-ref" oninput="app.updateField('refNumber', this.value)" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-l-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                            <button onclick="app.generateRefNumber()" class="bg-slate-100 hover:bg-slate-200 border border-l-0 border-slate-300 px-3 rounded-r-lg text-slate-600 text-xs" title="Generate New">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs">Confidential</label>
+                    <select id="input-conf" onchange="app.updateConf(this.value)" class="w-full border rounded px-2 py-1 text-sm mt-1">
+                        <option value="STRICTLY CONFIDENTIAL">STRICTLY CONFIDENTIAL</option>
+                        <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+                        <option value="General">General</option>
+                    </select>
+                </div>
+                </div>
+
+                <div id="tab-parties" class="tab-panel space-y-6 hidden" role="tabpanel" aria-labelledby="tab-btn-parties" hidden>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 mb-1">Recipient Details</h3>
+                    <p class="text-xs text-slate-500 mb-4">Enter employee or recipient information to appear on the official letterhead.</p>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Recipient Full Name *</label>
+                                <input type="text" id="input-recipient-name" oninput="app.updateField('recipientName', this.value)" placeholder="e.g. John Smith" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Employee ID / Code</label>
+                                <input type="text" id="input-recipient-id" oninput="app.updateField('recipientId', this.value)" placeholder="e.g. BH-EMP-409" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Job Position / Title</label>
+                                <input type="text" id="input-recipient-position" oninput="app.updateField('recipientPosition', this.value)" placeholder="e.g. Front Desk Receptionist" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Department</label>
+                                <input type="text" id="input-recipient-dept" oninput="app.updateField('recipientDept', this.value)" placeholder="e.g. Hospitality & Guest Relations" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Recipient Address / Residence</label>
+                            <textarea id="input-recipient-address" rows="2" oninput="app.updateField('recipientAddress', this.value)" placeholder="Street address, city, country" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-slate-200 pt-5">
+                    <h3 class="text-base font-bold text-slate-900 mb-1">Sender &amp; Department Head</h3>
+                    <p class="text-xs text-slate-500 mb-4">Issuing authority representing Behavior Hotel.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Representative Name</label>
+                            <input type="text" id="input-sender-name" value="S. Chianello" oninput="app.updateField('senderName', this.value)" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Designation / Title</label>
+                            <input type="text" id="input-sender-title" value="General Manager &amp; HR Director" oninput="app.updateField('senderTitle', this.value)" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Issuing Department</label>
+                            <input type="text" id="input-sender-dept" value="Executive Management &amp; Human Resources" oninput="app.updateField('senderDept', this.value)" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-burgundy focus:border-burgundy outline-none">
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <div id="tab-content" class="tab-panel space-y-4 hidden" role="tabpanel" aria-labelledby="tab-btn-content" hidden>
+                <div>
+                    <label class="text-xs no-print">Subject</label>
+                    <input type="text" id="input-subject" oninput="app.updateField('subject', this.value)" class="w-full border rounded px-2 py-1 text-sm mt-1 no-print">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs">Content</label>
+                        <button type="button" onclick="app.addSection()" class="text-xs bg-burgundy text-white px-2 py-0.5 rounded"><i class="fas fa-plus"></i> Add Section</button>
+                    </div>
+                    <div id="sections-editor-list" style="display:General" class="space-y-2"></div>
+                    <div class="mb-2 flex gap-1 flex-wrap">
+                        <button onclick="app.execCmd('bold')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-bold"></i></button>
+                        <button onclick="app.execCmd('italic')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-italic"></i></button>
+                        <button onclick="app.execCmd('underline')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-underline"></i></button>
+                        <button onclick="app.execCmd('justifyLeft')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-align-left"></i></button>
+                        <button onclick="app.execCmd('justifyCenter')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-align-center"></i></button>
+                        <button onclick="app.execCmd('justifyRight')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-align-right"></i></button>
+                        <button onclick="app.execCmd('justifyFull')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-align-justify"></i></button>
+                        <button onclick="app.execCmd('insertOrderedList')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-list-ol"></i></button>
+                        <button onclick="app.execCmd('insertUnorderedList')" class="border px-2 py-0.5 text-xs no-print" type="button"><i class="fas fa-list-ul"></i></button>
+                    </div>
+                    <div id="content-editor-main" contenteditable="true" class="border rounded p-2 text-xs min-h-[200px] bg-white" spellcheck="false" oninput="app.renderPreview()"></div>
+                </div>
+                </div>
+                <div id="tab-signatures" class="tab-panel space-y-4 hidden" role="tabpanel" aria-labelledby="tab-btn-signatures" hidden>
+                <div>
+                    <label class="text-xs">Logo</label>
+                    <input type="file" accept="image/*" onchange="app.uploadLogo(event)" class="w-full text-xs mt-1">
+                </div>
+                <div>
+                    <label class="text-xs">HR Signature</label>
+                    <input type="file" accept="image/*" onchange="app.uploadSig(event)" class="w-full text-xs mt-1">
+                </div>
+                </div>
+                <div id="tab-drafts" class="tab-panel space-y-4 hidden" role="tabpanel" aria-labelledby="tab-btn-drafts" hidden>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="app.saveDraftManually()" class="px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center shadow-sm"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Draft</button>
+                        <button type="button" onclick="app.openDrafts()" class="px-3.5 py-2 text-xs font-medium text-white bg-slate-800 hover:bg-slate-900 rounded-lg flex items-center shadow-sm"><i class="fa-solid fa-box-open mr-1.5"></i> Open Drafts</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="preview-panel" class="w-full flex-1 bg-gray-100 overflow-auto p-4">
+            <div class="flex justify-end mb-2 gap-1">
+                <button type="button" onclick="app.zoomPreview(-0.1)" class="border px-2 py-0.5 text-xs rounded bg-white"><i class="fas fa-minus"></i></button>
+                <span id="zoom-level-label" class="text-xs px-2 py-0.5">100%</span>
+                <button type="button" onclick="app.zoomPreview(0.1)" class="border px-2 py-0.5 text-xs rounded bg-white"><i class="fas fa-plus"></i></button>
+                <button type="button" onclick="app.resetZoom()" class="border px-2 py-0.5 text-xs rounded bg-white">Fit</button>
+            </div>
+            <div <div id="a4-print-container" class="a4-page mx-auto bg-white relative"><div style="border-bottom:2px solid #8B1E2D; padding-bottom:12px; margin-bottom:16px; display:flex; justify-content:space-between;"><img id="prev-logo" src="Logo.png" style="max-height:100px;"><div style="text-align:right; font-size:9px; line-height:1.3;"><div style="font-weight:700; font-size:11px;">BEHAVIOR HOTEL</div><div>Apartment 2, Block B, The Q6 Residence, Triq il-Majjiera</div><div>St. Paul's Bay, Malta | Reg: MT 24442604</div><div>Tel: +356 77189004 | Email: s.chianello@behaviorhotel.eu</div></div></div><div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:12px;"><div id="prev-conf" style="color:#8B1E2D; font-weight:700;"></div><div style="text-align:right;"><div id="prev-date"></div><div id="prev-ref"></div></div></div><div style="font-size:10px; margin-bottom:12px;"><div id="prev-rec-name" style="font-weight:700; font-size:11px;"></div><div id="prev-rec-pos"></div><div id="prev-rec-addr"></div></div><div style="text-align:center; font-weight:700; font-size:12px; color:#8B1E2D; text-decoration:underline; margin:12px 0;" id="prev-doc-type"></div><div style="font-weight:700; font-size:10px; margin-bottom:12px;">Subject: <span id="prev-subject"></span></div><div id="prev-sections" style="font-size:10px; line-height:1.6; text-align:justify;"></div><div style="position:absolute; bottom:15mm; left:20mm; right:20mm; display:flex; justify-content:space-between;"><div style="width:40%;"><div style="font-size:10px; font-weight:700;">For BEHAVIOR HOTEL</div><div id="prev-sig" style="height:50px;"></div><div style="border-top:1px solid #000; font-size:10px;">S. Chianello</div></div><div style="width:40%;"><div style="font-size:10px; font-weight:700;">Employee Acknowledgment</div><div style="height:50px; border-bottom:1px dashed #ccc;"></div><div style="font-size:9px;">Signature &amp; Date</div></div></div></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        (() => {
+            'use strict';
+            const $ = id => document.getElementById(id);
+            const first = (...ids) => ids.map($).find(Boolean);
+            const type = first('document-type','doc-type'), date = first('date','input-date');
+            const customTypeInput = $('custom-doc-type-input');
+            const customTypeStorageKey = 'behaviorHotelCustomDocTypes';
+            const customTypes = (() => { try { return JSON.parse(localStorage.getItem(customTypeStorageKey) || '[]').filter(v => typeof v === 'string' && v.trim()); } catch (_) { return []; } })();
+            const customTypeOption = type?.querySelector('option[value="__custom__"]');
+            customTypes.forEach(value => {
+                if (![...type.options].some(option => option.value === value)) {
+                    const option = document.createElement('option'); option.value = value; option.textContent = value; option.dataset.custom = 'true';
+                    type.insertBefore(option, customTypeOption);
+                }
+            });
+            const refreshCustomTypeControls = () => {
+                const isCustom = !!type?.selectedOptions[0]?.dataset.custom;
+                const deleteButton = $('del-custom');
+                if (deleteButton) deleteButton.classList.toggle('hidden', !isCustom);
+                const customTypeControls = $('custom-doc-type-controls');
+                if (customTypeControls) customTypeControls.style.display = type?.value === '__custom__' ? 'block' : 'none';
+            };
+            const ref = first('ref-number','input-ref'), recipient = first('recipient-name','input-recipient-name');
+            const address = first('recipient-address','input-recipient-address'), employee = first('employee-id','input-recipient-id');
+            const position = first('position','input-recipient-position'), subject = $('input-subject');
+            const conf = first('confidential','input-conf'), editor = first('content-editor','content-editor-main');
+            const page = first('a4-page','a4-print-container');
+            const aliases = {'prev-recipient-name':'prev-rec-name','prev-recipient-address':'prev-rec-addr','prev-employee-id':'prev-rec-id','prev-position':'prev-rec-pos','prev-content':'prev-sections','prev-confidential-wrap':'prev-conf'};
+            const el = id => $(id) || $(aliases[id]);
+            const text = (id,value) => { const n=el(id); if(n)n.textContent=value||''; };
+            const state={signatures:{hr:'',emp:'',emp2:''},zoom:1,drawTarget:'hr',undo:[]};
+            const tabIds = ['type', 'meta', 'parties', 'content', 'signatures', 'drafts'];
+
+            function switchTab(tabId, focusTab = false) {
+                if (!tabIds.includes(tabId)) tabId = 'type';
+                tabIds.forEach(id => {
+                    const button = $(`tab-btn-${id}`);
+                    const panel = $(`tab-${id}`);
+                    const isActive = id === tabId;
+                    if (button) {
+                        button.classList.toggle('active', isActive);
+                        button.classList.toggle('border-burgundy', isActive);
+                        button.classList.toggle('text-burgundy', isActive);
+                        button.classList.toggle('border-transparent', !isActive);
+                        button.classList.toggle('text-slate-600', !isActive);
+                        button.setAttribute('aria-selected', String(isActive));
+                        button.tabIndex = isActive ? 0 : -1;
+                        if (isActive && focusTab) button.focus();
+                    }
+                    if (panel) {
+                        panel.hidden = !isActive;
+                        panel.classList.toggle('hidden', !isActive);
+                    }
+                });
+            }
+
+            function setupTabs() {
+                const tablist = $('editor-tabs');
+                if (!tablist || tablist.dataset.tabsReady === 'true') return;
+                tablist.dataset.tabsReady = 'true';
+                tablist.addEventListener('keydown', event => {
+                    const current = event.target.closest('[role="tab"]');
+                    if (!current || !tablist.contains(current)) return;
+                    const currentIndex = tabIds.findIndex(id => current.id === `tab-btn-${id}`);
+                    if (currentIndex === -1) return;
+                    let nextIndex = currentIndex;
+                    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % tabIds.length;
+                    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+                    else if (event.key === 'Home') nextIndex = 0;
+                    else if (event.key === 'End') nextIndex = tabIds.length - 1;
+                    else return;
+                    event.preventDefault();
+                    switchTab(tabIds[nextIndex], true);
+                });
+                switchTab('type');
+            }
+
+            function safeHTML(html) {
+                const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+                doc.querySelectorAll('script,style,iframe,object,embed,form,svg,math,link,meta').forEach(n=>n.remove());
+                doc.body.querySelectorAll('*').forEach(n=>[...n.attributes].forEach(a=>{
+                    if(a.name.toLowerCase().startsWith('on') || a.name.toLowerCase()==='srcdoc' ||
+                       ((a.name==='href'||a.name==='src') && /^(javascript:|data:text\/html)/i.test(a.value.trim()))) n.removeAttribute(a.name);
+                }));
+                return doc.body.innerHTML;
+            }
+            function showError(name,message,input) {
+                let n=$('error-'+name);
+                if(!n){n=document.createElement('div');n.id='error-'+name;n.className='text-xs text-red-600 mt-1';input?.parentElement?.append(n);}
+                n.textContent=message;
+            }
+            function update() {
+                text('prev-date',date?.value ? new Date(date.value+'T00:00:00').toLocaleDateString() : '');
+                text('prev-ref',ref?.value ? `Ref: ${ref.value}` : '');
+                text('prev-recipient-name',recipient?.value); text('prev-recipient-address',address?.value);
+                text('prev-employee-id',employee?.value ? `Employee ID: ${employee.value}` : '');
+                text('prev-position',position?.value); text('prev-doc-type',type?.value);
+                text('prev-subject',subject?.value || type?.value || '');
+                const content=el('prev-content'); if(content&&editor)content.innerHTML=safeHTML(editor.innerHTML);
+                const confidential=!!conf && (conf.type==='checkbox' ? conf.checked : conf.value!=='General');
+                const badge=el('prev-confidential-wrap'); if(badge){badge.style.display=confidential?'':'none';if(conf.type!=='checkbox')badge.textContent=conf.value;}
+                const footer=$('footer-confidential'); if(footer)footer.style.display=confidential?'':'none';
+                const plain=editor?.innerText||'', words=plain.trim().split(/\s+/).filter(Boolean).length;
+                if($('word-count'))$('word-count').textContent=words;
+                if($('char-count'))$('char-count').textContent=plain.length;
+                if($('page-count'))$('page-count').textContent=Math.max(1,Math.ceil(plain.length/3000));
+            }
+            [type,date,ref,recipient,address,employee,position,subject,conf].filter(Boolean).forEach(n=>{n.addEventListener('input',update);n.addEventListener('change',update);});
+            if(date&&!date.value)date.value=new Date().toISOString().slice(0,10);
+            editor?.addEventListener('input',update);
+            function validate(){
+                const okType=!!type?.value?.trim(),okDate=!!date?.value,okRecipient=!!recipient?.value?.trim();
+                showError('doc-type',okType?'':'Please select a document type.',type);
+                showError('date',okDate?'':'Please select a date.',date);
+                showError('recipient',okRecipient?'':'Recipient name is required.',recipient);
+                return okType&&okDate&&okRecipient;
+            }
+
+            // Inline modern editing: transform only the current selection, without execCommand.
+            document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>{
+                const cmd=button.dataset.command,value=button.dataset.value||'',sel=getSelection(); editor?.focus();
+                if(!sel?.rangeCount||!editor?.contains(sel.anchorNode))return;
+                const range=sel.getRangeAt(0);
+                if(['bold','italic','underline'].includes(cmd)&&!range.collapsed){
+                    const wrap=document.createElement({bold:'strong',italic:'em',underline:'u'}[cmd]);
+                    try{range.surroundContents(wrap);}catch(_){wrap.append(range.extractContents());range.insertNode(wrap);} sel.selectAllChildren(wrap);
+                }else if(cmd==='formatBlock'){
+                    const tag=/^h[1-6]$/i.test(value)?value:'p',block=document.createElement(tag);
+                    if(!range.collapsed)block.append(range.extractContents());else block.append(document.createElement('br'));
+                    range.insertNode(block);sel.selectAllChildren(block);
+                }else if(cmd==='clear'&&!range.collapsed){const t=document.createTextNode(range.toString());range.deleteContents();range.insertNode(t);}
+                else if(cmd==='lineHeight'){(range.startContainer.parentElement?.closest('p,div,li')||editor).style.lineHeight=value||'1.5';}
+                else if(/^justify/.test(cmd)){(range.startContainer.parentElement?.closest('p,div,li')||editor).style.textAlign=({justifyLeft:'left',justifyCenter:'center',justifyRight:'right',justifyFull:'justify'})[cmd];}
+                else if(cmd==='insertOrderedList'||cmd==='insertUnorderedList'){const list=document.createElement(cmd==='insertOrderedList'?'ol':'ul'),li=document.createElement('li');if(!range.collapsed)li.append(range.extractContents());else li.append(document.createElement('br'));list.append(li);range.insertNode(list);sel.selectAllChildren(li);}
+                update();
+            }));
+
+            const genRef=()=>`BH-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+            $('btn-gen-ref')?.addEventListener('click',()=>{if(ref)ref.value=genRef();update();});
+            if(ref&&!ref.value)ref.value=genRef();
+
+            function signature(key,data=''){
+                state.signatures[key]=data;
+                const node=$(key==='hr'?'prev-hr-sig':key==='emp'?'prev-emp-sig':'prev-emp2-sig');
+                if(node){node.replaceChildren();if(data){const img=new Image();img.src=data;img.alt='Signature';img.style.cssText='max-width:180px;max-height:55px';node.append(img);}}
+                if(key==='emp2'&&$('emp2-sig-block'))$('emp2-sig-block').style.display=data?'':'none';
+            }
+            ['hr','emp','emp2'].forEach(key=>{
+                $(`${key}-sig-upload`)?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f||!f.type.startsWith('image/'))return;const r=new FileReader();r.onload=()=>signature(key,r.result);r.readAsDataURL(f);});
+                $(`${key}-sig-clear`)?.addEventListener('click',()=>signature(key));
+                $(`${key}-sig-draw`)?.addEventListener('click',()=>openDraw(key));
+            });
+            function drawModal(){let m=$('draw-modal');if(m)return m;m=document.createElement('div');m.id='draw-modal';m.style.cssText='display:none;position:fixed;inset:0;background:#0009;z-index:100;align-items:center;justify-content:center;padding:16px';m.innerHTML='<div style="background:white;padding:16px;border-radius:10px;width:min(600px,100%)"><h2>Draw signature</h2><canvas id="signature-canvas" width="900" height="260" style="width:100%;height:170px;border:1px solid #aaa;touch-action:none"></canvas><div style="display:flex;gap:8px;margin-top:10px"><button id="sig-undo" type="button">Undo</button><button id="sig-clear-canvas" type="button">Clear</button><button id="sig-cancel" type="button">Cancel</button><button id="sig-save" type="button">Save</button></div></div>';document.body.append(m);m.querySelector('#sig-cancel').onclick=()=>m.style.display='none';m.querySelector('#sig-clear-canvas').onclick=()=>drawCtx?.clearRect(0,0,drawCanvas.width,drawCanvas.height);m.querySelector('#sig-undo').onclick=()=>{const image=new Image();const url=state.undo.pop();if(url){image.onload=()=>{drawCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);drawCtx.drawImage(image,0,0);};image.src=url;}};m.querySelector('#sig-save').onclick=()=>{if(drawCanvas)signature(state.drawTarget,drawCanvas.toDataURL('image/png'));m.style.display='none';};return m;}
+            let drawCanvas=null,drawCtx=null,drawing=false;
+            function openDraw(key){state.drawTarget=key;drawModal().style.display='flex';drawCanvas=$('signature-canvas');drawCtx=drawCanvas.getContext('2d');drawCtx.lineWidth=4;drawCtx.lineCap='round';drawCtx.strokeStyle='#111';state.undo=[];const point=e=>{const r=drawCanvas.getBoundingClientRect();return{x:(e.clientX-r.left)*drawCanvas.width/r.width,y:(e.clientY-r.top)*drawCanvas.height/r.height};};drawCanvas.onpointerdown=e=>{e.preventDefault();drawCanvas.setPointerCapture(e.pointerId);state.undo.push(drawCanvas.toDataURL());drawing=true;const p=point(e);drawCtx.beginPath();drawCtx.moveTo(p.x,p.y);};drawCanvas.onpointermove=e=>{if(!drawing)return;const p=point(e);drawCtx.lineTo(p.x,p.y);drawCtx.stroke();};drawCanvas.onpointerup=drawCanvas.onpointercancel=()=>drawing=false;}
+
+            const storageKey='behaviorHotelDrafts';
+            function drafts(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]')}catch(_){return[]}}
+            function collect(){const fields={};document.querySelectorAll('input,textarea,select').forEach(n=>{if(n.id&&n.type!=='file')fields[n.id]=n.type==='checkbox'?n.checked:n.value;});return{ id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`,timestamp:new Date().toISOString(),fields,content:editor?.innerHTML||'',signatures:state.signatures};}
+            function save(){try{localStorage.setItem(storageKey,JSON.stringify([collect(),...drafts()]));alert('Draft saved.');}catch(_){alert('Unable to save draft in this browser.');}}
+            function restore(d){Object.entries(d.fields||{}).forEach(([id,v])=>{const n=$(id);if(n){if(n.type==='checkbox')n.checked=!!v;else n.value=v;}});if(editor)editor.innerHTML=safeHTML(d.content);Object.entries(d.signatures||{}).forEach(([k,v])=>signature(k,v));update();}
+            function load(){let m=$('draft-modal');if(!m){m=document.createElement('div');m.id='draft-modal';m.style.cssText='display:none;position:fixed;inset:0;background:#0009;z-index:99;align-items:center;justify-content:center;padding:16px';m.innerHTML='<div style="background:white;padding:16px;border-radius:10px;width:min(600px,100%);max-height:80vh;overflow:auto"><div style="display:flex;justify-content:space-between"><b>Saved drafts</b><button type="button" id="close-drafts">Close</button></div><div id="draft-list"></div></div>';document.body.append(m);m.querySelector('#close-drafts').onclick=()=>m.style.display='none';}const list=$('draft-list');list.replaceChildren();drafts().forEach(d=>{const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;padding:8px;border-bottom:1px solid #ddd';const label=document.createElement('span');label.style.flex='1';label.textContent=`${d.fields?.['doc-type']||'Document'} — ${d.fields?.['input-recipient-name']||'Unnamed'} · ${new Date(d.timestamp).toLocaleString()}`;const use=document.createElement('button');use.type='button';use.textContent='Load';use.onclick=()=>{restore(d);m.style.display='none';};const del=document.createElement('button');del.type='button';del.textContent='Delete';del.onclick=()=>{localStorage.setItem(storageKey,JSON.stringify(drafts().filter(x=>x.id!==d.id)));load();};row.append(label,use,del);list.append(row);});m.style.display='flex';}
+            function reset(){document.querySelectorAll('input,textarea').forEach(n=>{if(n.type==='file')n.value='';else if(n.type==='checkbox')n.checked=false;else n.value='';});if(date)date.value=new Date().toISOString().slice(0,10);if(type)type.selectedIndex=0;if(conf&&conf.tagName==='SELECT')conf.value='General';if(editor)editor.innerHTML='';Object.keys(state.signatures).forEach(k=>signature(k));if(ref)ref.value=genRef();update();}
+            $('btn-save')?.addEventListener('click',save);$('btn-load')?.addEventListener('click',load);$('btn-new')?.addEventListener('click',reset);$('btn-clear')?.addEventListener('click',reset);
+            const print=()=>{if(validate())window.print();};$('btn-print')?.addEventListener('click',print);
+            $('btn-pdf')?.addEventListener('click',async()=>{if(!validate())return;if(!window.html2canvas||!window.jspdf?.jsPDF){alert('PDF export is unavailable.');return;}try{const c=await window.html2canvas(page,{scale:3,useCORS:true,backgroundColor:'#fff'}),pdf=new window.jspdf.jsPDF('p','mm','a4'),w=190,h=277,sliceHeight=Math.floor(c.width*h/w);let y=0;while(y<c.height){const sh=Math.min(sliceHeight,c.height-y),part=document.createElement('canvas');part.width=c.width;part.height=sh;part.getContext('2d').drawImage(c,0,y,c.width,sh,0,0,c.width,sh);if(y)pdf.addPage();pdf.addImage(part.toDataURL('image/png'),'PNG',10,10,w,sh/c.width*w);y+=sh;}const clean=s=>String(s||'Document').replace(/[^a-z0-9_-]+/gi,'_');pdf.save(`${clean(type?.value)}_${clean(recipient?.value)}.pdf`);}catch(e){console.error(e);alert('PDF export failed.');}});
+            $('btn-show-editor')?.addEventListener('click',()=>{$('editor-panel').style.display='';$('preview-panel').style.display='none';});
+            $('btn-show-preview')?.addEventListener('click',()=>{$('editor-panel').style.display='none';$('preview-panel').style.display='';});
+            $('btn-toggle-preview')?.addEventListener('click',()=>{const p=$('preview-panel'),e=$('editor-panel');if(innerWidth<768){const show=p.style.display==='none';p.style.display=show?'':'none';e.style.display=show?'none':'';}else p.classList.toggle('hidden');});
+            window.app=Object.assign(window.app||{}, {
+                updateField(k,v){const map={date,refNumber:ref,recipientName:recipient,recipientId:employee,recipientPosition:position,recipientAddress:address,subject};if(map[k])map[k].value=v;update();},updateConf(v){if(conf)conf.value=v;update();},renderPreview:update,
+                printDocument:print,downloadPDF(){ $('btn-pdf')?.click(); },saveDraftManually:save,newDocument:reset,
+                togglePreview(){ $('btn-toggle-preview')?.click(); },execCmd(cmd){document.querySelector(`[data-command="${cmd}"]`)?.click();},
+                uploadSig(e){const f=e.target.files?.[0];if(f){const r=new FileReader();r.onload=()=>signature('hr',r.result);r.readAsDataURL(f);}},
+                uploadLogo(e){const f=e.target.files?.[0];if(f){const r=new FileReader();r.onload=()=>{$('prev-logo').src=r.result;};r.readAsDataURL(f);}},
+                zoomPreview(d){state.zoom=Math.max(.5,Math.min(1.5,state.zoom+d));page.style.transform=`scale(${state.zoom})`;if($('zoom-level-label'))$('zoom-level-label').textContent=`${Math.round(state.zoom*100)}%`;},resetZoom(){state.zoom=1;page.style.transform='scale(1)';if($('zoom-level-label'))$('zoom-level-label').textContent='100%';},
+                switchTab,openDrafts:load,handleDocTypeChange(n){refreshCustomTypeControls();if(n.value==='__custom__'){customTypeInput?.focus();return;}if(subject&&!subject.value)subject.value=n.value;update();},
+                addDocType(){const value=customTypeInput?.value.trim();if(!value)return;if([...type.options].some(option=>option.value.toLowerCase()===value.toLowerCase())){alert('This document type already exists.');return;}const option=document.createElement('option');option.value=value;option.textContent=value;option.dataset.custom='true';type.insertBefore(option,customTypeOption);customTypes.push(value);try{localStorage.setItem(customTypeStorageKey,JSON.stringify(customTypes));}catch(_){}type.value=value;if(customTypeInput)customTypeInput.value='';refreshCustomTypeControls();if(subject)subject.value=value;update();},
+                addSection(){if(editor){const p=document.createElement('p');p.innerHTML='<br>';editor.append(p);update();}},deleteDocType(){const option=type?.selectedOptions[0];if(!option?.dataset.custom)return;const value=option.value;option.remove();const index=customTypes.indexOf(value);if(index!==-1)customTypes.splice(index,1);try{localStorage.setItem(customTypeStorageKey,JSON.stringify(customTypes));}catch(_){}type.selectedIndex=0;refreshCustomTypeControls();if(subject?.value===value)subject.value='';update();}
+            });
+            refreshCustomTypeControls();
+            setupTabs();
+            update();
+        })();
+    </script>
+</body>
+</html>
