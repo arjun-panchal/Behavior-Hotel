@@ -1,0 +1,1148 @@
+// Behavior Hotel - Official Letter Generator
+// Vanilla JavaScript - No frameworks
+
+// Global variables
+let currentLogo = null;
+let currentDraftId = null;
+let signatureCanvas = null;
+let signatureCtx = null;
+let isDrawing = false;
+let drawingPaths = [];
+let currentDrawingTarget = null;
+
+// Default logo (can be replaced with actual logo URL if needed)
+const DEFAULT_LOGO = null;
+
+// Company branding
+const COMPANY_INFO = {
+  name: "BEHAVIOR HOTEL",
+  address: "Apartment 2, Block B, The Q6 Residence, Triq il-Majjiera, St. Paul’s Bay, Malta",
+  regNo: "MT 24442604",
+  phone: "+356 77189004",
+  email: "s.chianello@behaviorhotel.eu"
+};
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+  initializeApp();
+});
+
+function initializeApp() {
+  setupDateField();
+  setupRichTextEditor();
+  setupLogoUpload();
+  setupSignatures();
+  setupFormInputs();
+  setupButtons();
+  setupModals();
+  setupMobilePreview();
+  updatePreview();
+  autoSave();
+  
+  // Set document status
+  updateDocumentStatus();
+}
+
+// Setup date field with today's date as default
+function setupDateField() {
+  const dateInput = document.getElementById('date');
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.value = today;
+}
+
+// Setup rich text editor
+function setupRichTextEditor() {
+  const editor = document.getElementById('content-editor');
+  const toolbar = document.getElementById('rich-toolbar');
+  
+  // Handle toolbar button clicks
+  toolbar.querySelectorAll('button[data-command]').forEach(button => {
+    button.addEventListener('click', function() {
+      const command = this.getAttribute('data-command');
+      executeCommand(command);
+    });
+  });
+  
+  // Handle formatBlock select
+  toolbar.querySelector('select[data-command="formatBlock"]').addEventListener('change', function() {
+    const command = this.getAttribute('data-command');
+    executeCommand(command, this.value);
+    this.value = 'p'; // Reset to paragraph
+  });
+  
+  // Update word/char count and page count on input
+  editor.addEventListener('input', function() {
+    updateContentStats();
+    updatePreview();
+    updateDocumentStatus();
+  });
+  
+  // Handle paste to clean formatting
+  editor.addEventListener('paste', function(e) {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+  
+  // Keyboard shortcuts
+  editor.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+      switch(e.key) {
+        case 'b':
+          e.preventDefault();
+          executeCommand('bold');
+          break;
+        case 'i':
+          e.preventDefault();
+          executeCommand('italic');
+          break;
+        case 'u':
+          e.preventDefault();
+          executeCommand('underline');
+          break;
+      }
+    }
+  });
+  
+  updateContentStats();
+}
+
+function executeCommand(command, value = null) {
+  document.execCommand(command, false, value);
+  document.getElementById('content-editor').focus();
+  updateContentStats();
+  updatePreview();
+  updateDocumentStatus();
+}
+
+// Update content statistics
+function updateContentStats() {
+  const editor = document.getElementById('content-editor');
+  const text = editor.innerText || '';
+  const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+  const charCount = text.length;
+  
+  document.getElementById('word-count').textContent = wordCount;
+  document.getElementById('char-count').textContent = charCount;
+  
+  // Estimate page count (roughly ~2500 chars per A4 page with normal spacing)
+  const pageCount = Math.max(1, Math.ceil(charCount / 2500));
+  document.getElementById('page-count').textContent = pageCount;
+}
+
+// Setup form inputs for preview updates
+function setupFormInputs() {
+  // Date
+  document.getElementById('date').addEventListener('input', function() {
+    updatePreview();
+    updateDocumentStatus();
+  });
+  
+  // Reference number
+  document.getElementById('ref-number').addEventListener('input', function() {
+    updatePreview();
+  });
+  
+  // Confidential checkbox
+  document.getElementById('confidential').addEventListener('change', function() {
+    updatePreview();
+  });
+  
+  // Recipient
+  document.getElementById('recipient-name').addEventListener('input', function() {
+    updatePreview();
+    validateField('recipient-name', 'error-recipient');
+    updateDocumentStatus();
+  });
+  document.getElementById('recipient-address').addEventListener('input', function() {
+    updatePreview();
+  });
+  document.getElementById('employee-id').addEventListener('input', function() {
+    updatePreview();
+  });
+  document.getElementById('position').addEventListener('input', function() {
+    updatePreview();
+  });
+  
+  // Sender
+  document.getElementById('department').addEventListener('input', function() {
+    updatePreview();
+  });
+  document.getElementById('rep-name').addEventListener('input', function() {
+    updatePreview();
+  });
+  document.getElementById('designation').addEventListener('input', function() {
+    updatePreview();
+  });
+  
+  // Subject
+  document.getElementById('subject').addEventListener('input', function() {
+    updatePreview();
+    validateField('subject', 'error-subject');
+    updateDocumentStatus();
+  });
+  
+  // Document type
+  document.getElementById('document-type').addEventListener('change', function() {
+    updatePreview();
+    validateField('document-type', 'error-doc-type');
+    updateDocumentStatus();
+  });
+  
+  // Footer settings
+  document.getElementById('show-confidential').addEventListener('change', function() {
+    updatePreview();
+  });
+  document.getElementById('show-page-number').addEventListener('change', function() {
+    updatePreview();
+  });
+}
+
+// Validate a field
+function validateField(fieldId, errorId) {
+  const field = document.getElementById(fieldId);
+  const errorEl = document.getElementById(errorId);
+  if (!field || !errorEl) return;
+  
+  if (field.value.trim() === '') {
+    errorEl.textContent = 'This field is required';
+    field.classList.add('error');
+  } else {
+    errorEl.textContent = '';
+    field.classList.remove('error');
+  }
+}
+
+// Update document status
+function updateDocumentStatus() {
+  const docType = document.getElementById('document-type').value;
+  const recipient = document.getElementById('recipient-name').value;
+  const subject = document.getElementById('subject').value;
+  const content = document.getElementById('content-editor').innerText.trim();
+  
+  const statusEl = document.getElementById('doc-status');
+  
+  if (docType && recipient && subject && content) {
+    statusEl.textContent = 'Ready';
+    statusEl.style.backgroundColor = '#dcfce7';
+    statusEl.style.color = '#166534';
+  } else {
+    statusEl.textContent = 'Draft';
+    statusEl.style.backgroundColor = '#e0f2fe';
+    statusEl.style.color = '#0369a1';
+  }
+}
+
+// Setup buttons
+function setupButtons() {
+  // New Document
+  document.getElementById('btn-new').addEventListener('click', function() {
+    if (confirm('Create a new document? This will clear unsaved changes.')) {
+      clearForm();
+      updatePreview();
+      updateDocumentStatus();
+    }
+  });
+  
+  // Save Draft
+  document.getElementById('btn-save').addEventListener('click', function() {
+    saveDraft();
+  });
+  
+  // Load Draft
+  document.getElementById('btn-load').addEventListener('click', function() {
+    openDraftModal();
+  });
+  
+  // Print
+  document.getElementById('btn-print').addEventListener('click', function() {
+    handlePrint();
+  });
+  
+  // Download PDF
+  document.getElementById('btn-pdf').addEventListener('click', function() {
+    handleDownloadPDF();
+  });
+  
+  // Generate Reference Number
+  document.getElementById('btn-gen-ref').addEventListener('click', function() {
+    generateRefNumber();
+  });
+  
+  // Clear Form
+  document.getElementById('btn-clear').addEventListener('click', function() {
+    if (confirm('Clear all form data?')) {
+      clearForm();
+      updatePreview();
+      updateDocumentStatus();
+    }
+  });
+  
+  // Duplicate Document
+  document.getElementById('btn-duplicate').addEventListener('click', function() {
+    duplicateDocument();
+  });
+  
+  // Delete Draft
+  document.getElementById('btn-delete-draft').addEventListener('click', function() {
+    deleteCurrentDraft();
+  });
+  
+  // Zoom controls
+  document.getElementById('btn-zoom-in').addEventListener('click', function() {
+    zoomIn();
+  });
+  document.getElementById('btn-zoom-out').addEventListener('click', function() {
+    zoomOut();
+  });
+  document.getElementById('btn-fit-page').addEventListener('click', function() {
+    fitToPage();
+  });
+  
+  // Mobile preview toggle
+  document.getElementById('btn-show-editor').addEventListener('click', function() {
+    document.body.classList.remove('show-preview');
+    document.body.classList.add('show-editor');
+  });
+  document.getElementById('btn-show-preview').addEventListener('click', function() {
+    document.body.classList.remove('show-editor');
+    document.body.classList.add('show-preview');
+  });
+}
+
+// Generate reference number
+function generateRefNumber() {
+  const date = new Date();
+  const year = date.getFullYear().toString().substr(-2);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const ref = `BH-${year}${month}${day}-${rand}`;
+  document.getElementById('ref-number').value = ref;
+  updatePreview();
+}
+
+// Clear form
+function clearForm() {
+  document.getElementById('document-type').value = '';
+  document.getElementById('date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('ref-number').value = '';
+  document.getElementById('confidential').checked = false;
+  document.getElementById('recipient-name').value = '';
+  document.getElementById('recipient-address').value = '';
+  document.getElementById('employee-id').value = '';
+  document.getElementById('position').value = '';
+  document.getElementById('department').value = '';
+  document.getElementById('rep-name').value = '';
+  document.getElementById('designation').value = '';
+  document.getElementById('subject').value = '';
+  document.getElementById('content-editor').innerHTML = '';
+  document.getElementById('show-confidential').checked = true;
+  document.getElementById('show-page-number').checked = false;
+  
+  // Clear signatures
+  clearAllSignatures();
+  // Clear logo
+  removeLogo();
+  
+  currentDraftId = null;
+  
+  // Clear errors
+  document.querySelectorAll('.error-msg').forEach(el => {
+    el.textContent = '';
+  });
+  
+  updateContentStats();
+  updateDocumentStatus();
+}
+
+// Setup logo upload
+function setupLogoUpload() {
+  const uploadBtn = document.getElementById('btn-upload-logo');
+  const fileInput = document.getElementById('logo-upload');
+  const removeBtn = document.getElementById('btn-remove-logo');
+  const resetBtn = document.getElementById('btn-reset-logo');
+  
+  uploadBtn.addEventListener('click', function() {
+    fileInput.click();
+  });
+  
+  fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        currentLogo = e.target.result;
+        updateLogoPreview();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+  
+  removeBtn.addEventListener('click', function() {
+    removeLogo();
+    updatePreview();
+  });
+  
+  resetBtn.addEventListener('click', function() {
+    currentLogo = null;
+    updateLogoPreview();
+    updatePreview();
+  });
+}
+
+function updateLogoPreview() {
+  const logoImg = document.getElementById('logo-img');
+  const defaultLogo = document.getElementById('default-logo');
+  
+  if (currentLogo) {
+    logoImg.src = currentLogo;
+    logoImg.hidden = false;
+    defaultLogo.hidden = true;
+  } else {
+    logoImg.hidden = true;
+    defaultLogo.hidden = false;
+  }
+}
+
+function removeLogo() {
+  currentLogo = null;
+  const logoImg = document.getElementById('logo-img');
+  const defaultLogo = document.getElementById('default-logo');
+  logoImg.hidden = true;
+  defaultLogo.hidden = false;
+  document.getElementById('logo-upload').value = '';
+}
+
+// Setup signatures
+function setupSignatures() {
+  // HR Signature
+  document.getElementById('btn-hr-upload').addEventListener('click', function() {
+    document.getElementById('hr-sig-upload').click();
+  });
+  document.getElementById('hr-sig-upload').addEventListener('change', function(e) {
+    handleSignatureUpload(e, 'hr-sig-preview', 'prev-hr-sig');
+  });
+  document.getElementById('btn-hr-draw').addEventListener('click', function() {
+    openDrawModal('hr-sig-preview', 'prev-hr-sig');
+  });
+  document.getElementById('btn-hr-clear').addEventListener('click', function() {
+    clearSignature('hr-sig-preview', 'prev-hr-sig');
+  });
+  
+  // Employee Signature
+  document.getElementById('btn-emp-upload').addEventListener('click', function() {
+    document.getElementById('emp-sig-upload').click();
+  });
+  document.getElementById('emp-sig-upload').addEventListener('change', function(e) {
+    handleSignatureUpload(e, 'emp-sig-preview', 'prev-emp-sig');
+  });
+  document.getElementById('btn-emp-draw').addEventListener('click', function() {
+    openDrawModal('emp-sig-preview', 'prev-emp-sig');
+  });
+  document.getElementById('btn-emp-clear').addEventListener('click', function() {
+    clearSignature('emp-sig-preview', 'prev-emp-sig');
+  });
+  
+  // Second Employee Signature
+  document.getElementById('btn-emp2-upload').addEventListener('click', function() {
+    document.getElementById('emp2-sig-upload').click();
+  });
+  document.getElementById('emp2-sig-upload').addEventListener('change', function(e) {
+    handleSignatureUpload(e, 'emp2-sig-preview', 'prev-emp2-sig');
+  });
+  document.getElementById('btn-emp2-draw').addEventListener('click', function() {
+    openDrawModal('emp2-sig-preview', 'prev-emp2-sig');
+  });
+  document.getElementById('btn-emp2-clear').addEventListener('click', function() {
+    clearSignature('emp2-sig-preview', 'prev-emp2-sig');
+    document.getElementById('emp2-sig-block').hidden = true;
+  });
+}
+
+function handleSignatureUpload(e, previewId, previewPrevId) {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      // Set preview
+      const preview = document.getElementById(previewId);
+      preview.innerHTML = `<img src="${e.target.result}" alt="Signature">`;
+      
+      // Set preview in document
+      const previewPrev = document.getElementById(previewPrevId);
+      if (previewPrev) {
+        previewPrev.innerHTML = `<img src="${e.target.result}" alt="Signature">`;
+      }
+      
+      // Show second employee signature block if this is emp2
+      if (previewId === 'emp2-sig-preview') {
+        document.getElementById('emp2-sig-block').hidden = false;
+      }
+      
+      updatePreview();
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function clearSignature(previewId, previewPrevId) {
+  document.getElementById(previewId).innerHTML = '';
+  const previewPrev = document.getElementById(previewPrevId);
+  if (previewPrev) {
+    previewPrev.innerHTML = '';
+  }
+  updatePreview();
+}
+
+function clearAllSignatures() {
+  clearSignature('hr-sig-preview', 'prev-hr-sig');
+  clearSignature('emp-sig-preview', 'prev-emp-sig');
+  clearSignature('emp2-sig-preview', 'prev-emp2-sig');
+  document.getElementById('emp2-sig-block').hidden = true;
+  document.getElementById('hr-sig-upload').value = '';
+  document.getElementById('emp-sig-upload').value = '';
+  document.getElementById('emp2-sig-upload').value = '';
+}
+
+// Setup modals
+function setupModals() {
+  // Draw signature modal
+  document.getElementById('btn-close-modal').addEventListener('click', function() {
+    closeDrawModal();
+  });
+  document.getElementById('btn-cancel-draw').addEventListener('click', function() {
+    closeDrawModal();
+  });
+  document.getElementById('btn-save-draw').addEventListener('click', function() {
+    saveDrawing();
+  });
+  document.getElementById('btn-clear-canvas').addEventListener('click', function() {
+    clearCanvas();
+  });
+  document.getElementById('btn-undo-canvas').addEventListener('click', function() {
+    undoCanvas();
+  });
+  
+  // Close modals when clicking outside
+  document.getElementById('draw-modal').addEventListener('click', function(e) {
+    if (e.target.id === 'draw-modal') {
+      closeDrawModal();
+    }
+  });
+  document.getElementById('draft-modal').addEventListener('click', function(e) {
+    if (e.target.id === 'draft-modal') {
+      closeDraftModal();
+    }
+  });
+  
+  // Draft modal
+  document.getElementById('btn-close-draft-modal').addEventListener('click', function() {
+    closeDraftModal();
+  });
+  document.getElementById('btn-cancel-load').addEventListener('click', function() {
+    closeDraftModal();
+  });
+  
+  // Initialize canvas for drawing
+  setupSignatureCanvas();
+}
+
+function setupSignatureCanvas() {
+  signatureCanvas = document.getElementById('signature-canvas');
+  signatureCtx = signatureCanvas.getContext('2d');
+  
+  // Set canvas size
+  signatureCanvas.width = 600;
+  signatureCanvas.height = 200;
+  
+  // Set styles
+  signatureCtx.lineWidth = 2;
+  signatureCtx.lineCap = 'round';
+  signatureCtx.lineJoin = 'round';
+  signatureCtx.strokeStyle = '#000000';
+  
+  // Mouse events
+  signatureCanvas.addEventListener('mousedown', startDrawing);
+  signatureCanvas.addEventListener('mousemove', draw);
+  signatureCanvas.addEventListener('mouseup', stopDrawing);
+  signatureCanvas.addEventListener('mouseout', stopDrawing);
+  
+  // Touch events
+  signatureCanvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = signatureCanvas.getBoundingClientRect();
+    const scaleX = signatureCanvas.width / rect.width;
+    const scaleY = signatureCanvas.height / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+    isDrawing = true;
+    drawingPaths.push([]);
+    drawingPaths[drawingPaths.length - 1].push({x, y});
+  }, { passive: false });
+  
+  signatureCanvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const touch = e.touches[0];
+    const rect = signatureCanvas.getBoundingClientRect();
+    const scaleX = signatureCanvas.width / rect.width;
+    const scaleY = signatureCanvas.height / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+    drawingPaths[drawingPaths.length - 1].push({x, y});
+    redrawCanvas();
+  }, { passive: false });
+  
+  signatureCanvas.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (isDrawing) {
+      isDrawing = false;
+    }
+  });
+  
+  clearCanvas();
+}
+
+function startDrawing(e) {
+  isDrawing = true;
+  const rect = signatureCanvas.getBoundingClientRect();
+  const scaleX = signatureCanvas.width / rect.width;
+  const scaleY = signatureCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  drawingPaths.push([]);
+  drawingPaths[drawingPaths.length - 1].push({x, y});
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const rect = signatureCanvas.getBoundingClientRect();
+  const scaleX = signatureCanvas.width / rect.width;
+  const scaleY = signatureCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  drawingPaths[drawingPaths.length - 1].push({x, y});
+  redrawCanvas();
+}
+
+function stopDrawing() {
+  isDrawing = false;
+}
+
+function redrawCanvas() {
+  signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+  signatureCtx.beginPath();
+  
+  drawingPaths.forEach(path => {
+    if (path.length > 0) {
+      signatureCtx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) {
+        signatureCtx.lineTo(path[i].x, path[i].y);
+      }
+    }
+  });
+  signatureCtx.stroke();
+}
+
+function clearCanvas() {
+  signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+  drawingPaths = [];
+}
+
+function undoCanvas() {
+  if (drawingPaths.length > 0) {
+    drawingPaths.pop();
+    redrawCanvas();
+  }
+}
+
+function openDrawModal(targetPreview, targetPrev) {
+  currentDrawingTarget = { preview: targetPreview, prev: targetPrev };
+  document.getElementById('draw-modal').classList.add('active');
+  clearCanvas();
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawModal() {
+  document.getElementById('draw-modal').classList.remove('active');
+  document.body.style.overflow = 'auto';
+  currentDrawingTarget = null;
+}
+
+function saveDrawing() {
+  if (drawingPaths.length === 0) {
+    alert('Please draw a signature first');
+    return;
+  }
+  
+  // Convert canvas to data URL (transparent background)
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = signatureCanvas.width;
+  tempCanvas.height = signatureCanvas.height;
+  const tempCtx = tempCanvas.getContext('2d');
+  
+  // Fill with white then draw (or keep transparent - but better transparent)
+  // For signatures, transparent is fine
+  tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+  tempCtx.lineWidth = 2;
+  tempCtx.lineCap = 'round';
+  tempCtx.lineJoin = 'round';
+  tempCtx.strokeStyle = '#000000';
+  
+  drawingPaths.forEach(path => {
+    if (path.length > 0) {
+      tempCtx.beginPath();
+      tempCtx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) {
+        tempCtx.lineTo(path[i].x, path[i].y);
+      }
+      tempCtx.stroke();
+    }
+  });
+  
+  const dataUrl = tempCanvas.toDataURL('image/png');
+  
+  // Set preview
+  const preview = document.getElementById(currentDrawingTarget.preview);
+  preview.innerHTML = `<img src="${dataUrl}" alt="Signature">`;
+  
+  // Set preview in document
+  const previewPrev = document.getElementById(currentDrawingTarget.prev);
+  if (previewPrev) {
+    previewPrev.innerHTML = `<img src="${dataUrl}" alt="Signature">`;
+  }
+  
+  // Show second employee signature block if this is emp2
+  if (currentDrawingTarget.preview === 'emp2-sig-preview') {
+    document.getElementById('emp2-sig-block').hidden = false;
+  }
+  
+  updatePreview();
+  closeDrawModal();
+}
+
+// Update preview
+function updatePreview() {
+  // Date
+  const dateInput = document.getElementById('date');
+  document.getElementById('prev-date').textContent = dateInput.value || '';
+  
+  // Reference number
+  document.getElementById('prev-ref').textContent = document.getElementById('ref-number').value || '';
+  
+  // Confidential
+  const isConfidential = document.getElementById('confidential').checked;
+  document.getElementById('prev-confidential-wrap').hidden = !isConfidential;
+  
+  // Recipient
+  document.getElementById('prev-recipient-name').textContent = document.getElementById('recipient-name').value || '';
+  document.getElementById('prev-recipient-address').textContent = document.getElementById('recipient-address').value || '';
+  
+  const empId = document.getElementById('employee-id').value;
+  const position = document.getElementById('position').value;
+  const empIdEl = document.getElementById('prev-employee-id');
+  const posEl = document.getElementById('prev-position');
+  
+  empIdEl.textContent = empId ? `Employee ID: ${empId}` : '';
+  posEl.textContent = position ? `Position: ${position}` : '';
+  
+  // Subject
+  document.getElementById('prev-subject').textContent = document.getElementById('subject').value || '';
+  
+  // Content
+  const contentEditor = document.getElementById('content-editor');
+  document.getElementById('prev-content').innerHTML = contentEditor.innerHTML;
+  
+  // HR Signature - update signer name/title from preview
+  const repName = document.getElementById('rep-name').value;
+  const designation = document.getElementById('designation').value;
+  document.getElementById('prev-hr-name').textContent = repName || '';
+  document.getElementById('prev-hr-title').textContent = designation || '';
+  
+  // Employee name in preview (use recipient name or generic)
+  document.getElementById('prev-emp-name').textContent = document.getElementById('recipient-name').value || '';
+  document.getElementById('prev-emp2-name').textContent = document.getElementById('recipient-name').value || 'Witness';
+  
+  // Logo
+  const logoImgPrev = document.getElementById('logo-img');
+  if (currentLogo) {
+    logoImgPrev.src = currentLogo;
+    logoImgPrev.hidden = false;
+    document.getElementById('default-logo').hidden = true;
+  } else {
+    logoImgPrev.hidden = true;
+    document.getElementById('default-logo').hidden = false;
+  }
+  
+  // Footer
+  const showConfidential = document.getElementById('show-confidential').checked;
+  const showPageNum = document.getElementById('show-page-number').checked;
+  document.getElementById('footer-confidential').style.display = showConfidential ? 'block' : 'none';
+  document.getElementById('page-number').hidden = !showPageNum;
+  
+  // Update document type in preview (optional - could add)
+}
+
+// Setup zoom controls
+let zoomLevel = 1;
+
+function zoomIn() {
+  zoomLevel += 0.1;
+  if (zoomLevel > 2) zoomLevel = 2;
+  updateZoom();
+}
+
+function zoomOut() {
+  zoomLevel -= 0.1;
+  if (zoomLevel < 0.5) zoomLevel = 0.5;
+  updateZoom();
+}
+
+function fitToPage() {
+  const previewContainer = document.getElementById('preview-container');
+  const a4Page = document.getElementById('a4-page');
+  const containerWidth = previewContainer.clientWidth - 40; // padding
+  const pageWidth = a4Page.scrollWidth;
+  zoomLevel = containerWidth / pageWidth;
+  if (zoomLevel > 2) zoomLevel = 2;
+  if (zoomLevel < 0.3) zoomLevel = 0.3;
+  updateZoom();
+}
+
+function updateZoom() {
+  const a4Page = document.getElementById('a4-page');
+  a4Page.style.transform = `scale(${zoomLevel})`;
+  a4Page.style.transformOrigin = 'top center';
+  document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+// Setup mobile preview
+function setupMobilePreview() {
+  // Default to editor view on mobile
+  if (window.innerWidth <= 768) {
+    document.body.classList.add('show-editor');
+  }
+  
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+      document.body.classList.remove('show-editor', 'show-preview');
+    } else if (!document.body.classList.contains('show-preview')) {
+      document.body.classList.add('show-editor');
+    }
+  });
+}
+
+// Handle print
+function handlePrint() {
+  // Validate required fields
+  const docType = document.getElementById('document-type').value;
+  const recipient = document.getElementById('recipient-name').value;
+  const subject = document.getElementById('subject').value;
+  const content = document.getElementById('content-editor').innerText.trim();
+  
+  if (!docType || !recipient || !subject || !content) {
+    alert('Please fill in all required fields: Document Type, Date, Recipient Name, Subject, and Content.');
+    return;
+  }
+  
+  // Update preview one more time
+  updatePreview();
+  
+  // Trigger print
+  window.print();
+}
+
+// Handle PDF download
+function handleDownloadPDF() {
+  // Validate required fields
+  const docType = document.getElementById('document-type').value;
+  const recipient = document.getElementById('recipient-name').value;
+  const subject = document.getElementById('subject').value;
+  const content = document.getElementById('content-editor').innerText.trim();
+  
+  if (!docType || !recipient || !subject || !content) {
+    alert('Please fill in all required fields: Document Type, Date, Recipient Name, Subject, and Content.');
+    return;
+  }
+  
+  updatePreview();
+  
+  const { jsPDF } = window.jspdf;
+  const a4Page = document.getElementById('a4-page');
+  
+  // Create a clone to ensure clean capture
+  const clone = a4Page.cloneNode(true);
+  clone.style.transform = 'none';
+  clone.style.width = '210mm';
+  clone.style.minHeight = '297mm';
+  clone.style.padding = '18mm 20mm';
+  clone.style.boxShadow = 'none';
+  clone.style.background = 'white';
+  
+  // Append temporarily
+  document.body.appendChild(clone);
+  
+  // Use html2canvas to capture
+  html2canvas(clone, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    allowTaint: true
+  }).then(canvas => {
+    document.body.removeChild(clone);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    if (pdfHeight > pdf.internal.pageSize.getHeight()) {
+      // Multi-page handling
+      let heightLeft = pdfHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight();
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+    } else {
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    }
+    
+    // Generate filename
+    const date = document.getElementById('date').value;
+    const safeRecipient = recipient.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const safeDocType = docType.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const filename = `${safeDocType}_${safeRecipient}_${date}.pdf`;
+    
+    pdf.save(filename);
+  }).catch(error => {
+    document.body.removeChild(clone);
+    console.error('PDF generation error:', error);
+    alert('Error generating PDF. Please try again.');
+  });
+}
+
+// Save draft
+function saveDraft() {
+  const draft = {
+    id: currentDraftId || 'draft_' + Date.now(),
+    createdAt: new Date().toISOString(),
+    documentType: document.getElementById('document-type').value,
+    date: document.getElementById('date').value,
+    refNumber: document.getElementById('ref-number').value,
+    confidential: document.getElementById('confidential').checked,
+    recipientName: document.getElementById('recipient-name').value,
+    recipientAddress: document.getElementById('recipient-address').value,
+    employeeId: document.getElementById('employee-id').value,
+    position: document.getElementById('position').value,
+    department: document.getElementById('department').value,
+    repName: document.getElementById('rep-name').value,
+    designation: document.getElementById('designation').value,
+    subject: document.getElementById('subject').value,
+    content: document.getElementById('content-editor').innerHTML,
+    showConfidential: document.getElementById('show-confidential').checked,
+    showPageNumber: document.getElementById('show-page-number').checked,
+    logo: currentLogo,
+    hrSig: document.getElementById('hr-sig-preview').innerHTML,
+    empSig: document.getElementById('emp-sig-preview').innerHTML,
+    emp2Sig: document.getElementById('emp2-sig-preview').innerHTML,
+    emp2Visible: !document.getElementById('emp2-sig-block').hidden
+  };
+  
+  const drafts = getDrafts();
+  const existingIndex = drafts.findIndex(d => d.id === draft.id);
+  if (existingIndex >= 0) {
+    drafts[existingIndex] = draft;
+  } else {
+    drafts.push(draft);
+  }
+  
+  localStorage.setItem('behaviorHotelDrafts', JSON.stringify(drafts));
+  currentDraftId = draft.id;
+  
+  alert('Draft saved successfully!');
+  updateDocumentStatus();
+}
+
+// Get drafts from localStorage
+function getDrafts() {
+  const drafts = localStorage.getItem('behaviorHotelDrafts');
+  return drafts ? JSON.parse(drafts) : [];
+}
+
+// Open draft modal
+function openDraftModal() {
+  const drafts = getDrafts();
+  const draftList = document.getElementById('draft-list');
+  const noDrafts = document.getElementById('no-drafts');
+  
+  if (drafts.length === 0) {
+    draftList.innerHTML = '';
+    noDrafts.hidden = false;
+  } else {
+    noDrafts.hidden = true;
+    draftList.innerHTML = drafts.map(draft => {
+      const date = new Date(draft.createdAt).toLocaleString();
+      const title = draft.documentType || 'Untitled';
+      return `
+        <div class="draft-item" data-id="${draft.id}">
+          <div class="draft-item-title">${escapeHtml(title)} - ${escapeHtml(draft.recipientName || 'No Recipient')}</div>
+          <div class="draft-item-meta">${date}</div>
+        </div>
+      `;
+    }).join('');
+    
+    // Add click listeners
+    draftList.querySelectorAll('.draft-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const draftId = this.getAttribute('data-id');
+        loadDraft(draftId);
+        closeDraftModal();
+      });
+    });
+  }
+  
+  document.getElementById('draft-modal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDraftModal() {
+  document.getElementById('draft-modal').classList.remove('active');
+  document.body.style.overflow = 'auto';
+}
+
+// Load draft
+function loadDraft(draftId) {
+  const drafts = getDrafts();
+  const draft = drafts.find(d => d.id === draftId);
+  
+  if (!draft) {
+    alert('Draft not found');
+    return;
+  }
+  
+  // Load basic fields
+  document.getElementById('document-type').value = draft.documentType || '';
+  document.getElementById('date').value = draft.date || '';
+  document.getElementById('ref-number').value = draft.refNumber || '';
+  document.getElementById('confidential').checked = draft.confidential || false;
+  document.getElementById('recipient-name').value = draft.recipientName || '';
+  document.getElementById('recipient-address').value = draft.recipientAddress || '';
+  document.getElementById('employee-id').value = draft.employeeId || '';
+  document.getElementById('position').value = draft.position || '';
+  document.getElementById('department').value = draft.department || '';
+  document.getElementById('rep-name').value = draft.repName || '';
+  document.getElementById('designation').value = draft.designation || '';
+  document.getElementById('subject').value = draft.subject || '';
+  document.getElementById('content-editor').innerHTML = draft.content || '';
+  document.getElementById('show-confidential').checked = draft.showConfidential !== false;
+  document.getElementById('show-page-number').checked = draft.showPageNumber || false;
+  
+  // Load logo
+  currentLogo = draft.logo || null;
+  updateLogoPreview();
+  
+  // Load signatures
+  document.getElementById('hr-sig-preview').innerHTML = draft.hrSig || '';
+  document.getElementById('emp-sig-preview').innerHTML = draft.empSig || '';
+  document.getElementById('emp2-sig-preview').innerHTML = draft.emp2Sig || '';
+  document.getElementById('emp2-sig-block').hidden = !draft.emp2Visible;
+  document.getElementById('prev-hr-sig').innerHTML = draft.hrSig || '';
+  document.getElementById('prev-emp-sig').innerHTML = draft.empSig || '';
+  document.getElementById('prev-emp2-sig').innerHTML = draft.emp2Sig || '';
+  
+  currentDraftId = draft.id;
+  
+  updateContentStats();
+  updatePreview();
+  updateDocumentStatus();
+  
+  alert('Draft loaded successfully!');
+}
+
+// Duplicate document
+function duplicateDocument() {
+  // Save current as a new draft
+  const draft = {
+    id: 'draft_' + Date.now(),
+    createdAt: new Date().toISOString(),
+    documentType: document.getElementById('document-type').value,
+    date: document.getElementById('date').value,
+    refNumber: '',
+    confidential: document.getElementById('confidential').checked,
+    recipientName: document.getElementById('recipient-name').value,
+    recipientAddress: document.getElementById('recipient-address').value,
+    employeeId: document.getElementById('employee-id').value,
+    position: document.getElementById('position').value,
+    department: document.getElementById('department').value,
+    repName: document.getElementById('rep-name').value,
+    designation: document.getElementById('designation').value,
+    subject: document.getElementById('subject').value,
+    content: document.getElementById('content-editor').innerHTML,
+    showConfidential: document.getElementById('show-confidential').checked,
+    showPageNumber: document.getElementById('show-page-number').checked,
+    logo: currentLogo,
+    hrSig: document.getElementById('hr-sig-preview').innerHTML,
+    empSig: document.getElementById('emp-sig-preview').innerHTML,
+    emp2Sig: document.getElementById('emp2-sig-preview').innerHTML,
+    emp2Visible: !document.getElementById('emp2-sig-block').hidden
+  };
+  
+  const drafts = getDrafts();
+  drafts.push(draft);
+  localStorage.setItem('behaviorHotelDrafts', JSON.stringify(drafts));
+  currentDraftId = draft.id;
+  document.getElementById('ref-number').value = '';
+  
+  updatePreview();
+  alert('Document duplicated successfully!');
+}
+
+// Delete current draft
+function deleteCurrentDraft() {
+  if (!currentDraftId) {
+    alert('No draft is currently loaded to delete.');
+    return;
+  }
+  
+  if (confirm('Delete this draft? This action cannot be undone.')) {
+    const drafts = getDrafts();
+    const filtered = drafts.filter(d => d.id !== currentDraftId);
+    localStorage.setItem('behaviorHotelDrafts', JSON.stringify(filtered));
+    
+    clearForm();
+    updatePreview();
+    updateDocumentStatus();
+    alert('Draft deleted successfully!');
+  }
+}
+
+// Auto save every 30 seconds
+function autoSave() {
+  setInterval(() => {
+    // Only auto-save if there's meaningful content
+    const hasContent = document.getElementById('recipient-name').value ||
+                       document.getElementById('subject').value ||
+                       document.getElementById('content-editor').innerText.trim();
+    
+    if (hasContent && currentDraftId) {
+      saveDraft();
+    }
+  }, 30000);
+}
+
+// Utility function to escape HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
